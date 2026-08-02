@@ -51,10 +51,14 @@ function fail(path: string, error: unknown): never {
 }
 
 export async function confirmWeekCopyAction(formData: FormData) {
-  const source = normalizeWeekStart(field(formData, "sourceWeek"));
-  const target = normalizeWeekStart(field(formData, "targetWeek"));
+  const rawSource = field(formData, "sourceWeek");
+  const rawTarget = field(formData, "targetWeek");
+  let source = rawSource;
+  let target = rawTarget;
   let created: number;
   try {
+    source = normalizeWeekStart(calendarDateSchema.parse(rawSource), rawSource);
+    target = normalizeWeekStart(calendarDateSchema.parse(rawTarget), rawTarget);
     created = await copyWeek(source, target);
   } catch (error) {
     fail(`/semana/recursos?mode=copy&source=${source}&target=${target}`, error);
@@ -66,8 +70,10 @@ export async function confirmWeekCopyAction(formData: FormData) {
 }
 
 export async function saveTemplateAction(formData: FormData) {
-  const week = normalizeWeekStart(field(formData, "week"));
+  const rawWeek = field(formData, "week");
+  let week = rawWeek;
   try {
+    week = normalizeWeekStart(calendarDateSchema.parse(rawWeek), rawWeek);
     const details = templateDetailsSchema.parse({
       name: field(formData, "name"),
       description: field(formData, "description") || null,
@@ -82,11 +88,13 @@ export async function saveTemplateAction(formData: FormData) {
 
 export async function applyTemplateAction(formData: FormData) {
   const rawId = field(formData, "templateId");
-  const target = normalizeWeekStart(field(formData, "targetWeek"));
+  const rawTarget = field(formData, "targetWeek");
+  let target = rawTarget;
   let id = rawId;
   let created: number;
   try {
     id = idSchema.parse(rawId);
+    target = normalizeWeekStart(calendarDateSchema.parse(rawTarget), rawTarget);
     created = await applyWeeklyTemplate(id, target);
   } catch (error) {
     fail(

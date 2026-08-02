@@ -2,7 +2,7 @@ import Link from "next/link";
 import {
   currentCalendarDate,
   addCalendarDays,
-  normalizeWeekStart,
+  resolveWeekStart,
   formatWeekRange,
 } from "@/lib/calendar-values";
 import {
@@ -122,9 +122,7 @@ export default async function WeeklyResourcesPage({
   const params = (await searchParams) as Params;
   const mode = one(params.mode) ?? "copy";
   const today = currentCalendarDate();
-  const week = normalizeWeekStart(
-    one(params.week) ?? one(params.source) ?? today,
-  );
+  const week = resolveWeekStart(one(params.week) ?? one(params.source), today);
   const error = one(params.error);
   const templates = await listWeeklyTemplates();
   const activities = await listPlanningActivityOptions();
@@ -185,7 +183,7 @@ export default async function WeeklyResourcesPage({
     );
   } else if (mode === "apply-template") {
     const templateId = one(params.template) ?? "";
-    const target = normalizeWeekStart(one(params.target) ?? week);
+    const target = resolveWeekStart(one(params.target), week);
     const preview = templateId
       ? await previewTemplateApplication(templateId, target, today).catch(
           capturePreviewError,
@@ -367,11 +365,9 @@ export default async function WeeklyResourcesPage({
       </>
     );
   } else {
-    const source = normalizeWeekStart(one(params.source) ?? week);
+    const source = resolveWeekStart(one(params.source), week);
     const targetValue = one(params.target);
-    const target = normalizeWeekStart(
-      targetValue ?? addCalendarDays(source, 7),
-    );
+    const target = resolveWeekStart(targetValue, addCalendarDays(source, 7));
     const preview = targetValue
       ? await previewWeekCopy(source, target, today).catch(capturePreviewError)
       : null;

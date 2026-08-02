@@ -103,11 +103,37 @@ export function normalizeCalendarDate(
   return calendarDateSchema.safeParse(value).success ? value! : today;
 }
 
+export function resolveCalendarDate(
+  value: string | undefined,
+  fallback: string,
+): string {
+  return value === undefined
+    ? calendarDateSchema.parse(fallback)
+    : calendarDateSchema.parse(value);
+}
+
 export function normalizeCalendarMonth(
   value?: string,
   currentMonth = currentCalendarMonth(),
 ): string {
   return calendarMonthSchema.safeParse(value).success ? value! : currentMonth;
+}
+
+export function resolveCalendarMonth(
+  value: string | undefined,
+  fallback: string,
+): string {
+  return value === undefined
+    ? calendarMonthSchema.parse(fallback)
+    : calendarMonthSchema.parse(value);
+}
+
+export function resolveWeekStart(
+  value: string | undefined,
+  fallback: string = currentCalendarDate(),
+): string {
+  const candidate = resolveCalendarDate(value, fallback);
+  return normalizeWeekStart(candidate, candidate);
 }
 
 export function addCalendarMonths(value: string, amount: number): string {

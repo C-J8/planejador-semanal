@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
@@ -11,6 +10,7 @@ import {
   validationFields,
 } from "@/lib/activity-form";
 import { idSchema } from "@/lib/domain-validation";
+import { revalidateActivityPaths } from "@/lib/cache-invalidation";
 import {
   archiveActivity,
   createActivity,
@@ -61,7 +61,7 @@ export async function createActivityAction(
     };
   }
 
-  revalidatePath("/atividades");
+  revalidateActivityPaths();
   redirect("/atividades?notice=created");
 }
 
@@ -111,12 +111,7 @@ export async function updateActivityAction(
     };
   }
 
-  revalidatePath("/atividades");
-  revalidatePath("/mes");
-  revalidatePath("/acompanhamento");
-  revalidatePath("/semana");
-  revalidatePath("/modelos");
-  revalidatePath("/repeticoes");
+  revalidateActivityPaths();
   redirect(
     `/atividades?status=${active ? "active" : "archived"}&notice=updated`,
   );
@@ -155,12 +150,7 @@ export async function changeActivityStatusAction(
     };
   }
 
-  revalidatePath("/atividades");
-  revalidatePath("/mes");
-  revalidatePath("/acompanhamento");
-  revalidatePath("/semana");
-  revalidatePath("/modelos");
-  revalidatePath("/repeticoes");
+  revalidateActivityPaths();
   const operation =
     result.data.operation === "archive" ? "archived" : "reactivated";
   redirect(`/atividades?notice=${operation}`);

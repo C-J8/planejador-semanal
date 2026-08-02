@@ -3,11 +3,10 @@ import { redirect } from "next/navigation";
 import { DailyPlanner } from "@/components/daily-planner/daily-planner";
 import {
   addCalendarDays,
-  calendarDateSchema,
   currentCalendarDate,
   formatCalendarDateLong,
-  normalizeCalendarDate,
   normalizeWeekStart,
+  resolveCalendarDate,
 } from "@/lib/calendar-values";
 import { getDailyPlanner } from "@/services/daily-planner";
 
@@ -16,9 +15,8 @@ export default async function DayPage({ searchParams }: PageProps<"/dia">) {
   const requestedDate =
     typeof params.date === "string" ? params.date : undefined;
   const today = currentCalendarDate();
-  const date = normalizeCalendarDate(requestedDate, today);
-  if (!calendarDateSchema.safeParse(requestedDate).success)
-    redirect(`/dia?date=${date}`);
+  const date = resolveCalendarDate(requestedDate, today);
+  if (requestedDate === undefined) redirect(`/dia?date=${date}`);
 
   const weekStart = normalizeWeekStart(date, today);
   const planner = await getDailyPlanner(date);

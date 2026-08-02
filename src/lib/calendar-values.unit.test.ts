@@ -4,6 +4,9 @@ import {
   localTimeSchema,
   parseCalendarDate,
   parseLocalTime,
+  resolveCalendarDate,
+  resolveCalendarMonth,
+  resolveWeekStart,
   serializeCalendarDate,
   serializeLocalTime,
 } from "@/lib/calendar-values";
@@ -29,6 +32,27 @@ describe("datas de calendário", () => {
   it("mantém o dia no round-trip", () => {
     const value = "2026-08-03";
     expect(serializeCalendarDate(parseCalendarDate(value))).toBe(value);
+  });
+
+  it("usa padrão somente quando o parâmetro está ausente", () => {
+    expect(resolveCalendarDate(undefined, "2026-08-02")).toBe("2026-08-02");
+    expect(() => resolveCalendarDate("2026-02-30", "2026-08-02")).toThrow();
+    expect(() => resolveCalendarDate("02/08/2026", "2026-08-02")).toThrow();
+  });
+
+  it.each([
+    ["2024-02-29", "2024-02-29"],
+    ["2026-12-31", "2026-12-31"],
+    ["2027-01-01", "2027-01-01"],
+  ])("resolve limites válidos sem deslocamento: %s", (value, expected) => {
+    expect(resolveCalendarDate(value, "2026-08-02")).toBe(expected);
+  });
+
+  it("rejeita mês e semana explicitamente inválidos", () => {
+    expect(resolveCalendarMonth(undefined, "2026-08")).toBe("2026-08");
+    expect(() => resolveCalendarMonth("2026-13", "2026-08")).toThrow();
+    expect(resolveWeekStart("2026-08-02")).toBe("2026-07-27");
+    expect(() => resolveWeekStart("inválida")).toThrow();
   });
 });
 

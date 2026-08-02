@@ -2,11 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   addCalendarMonths,
-  calendarMonthSchema,
   currentCalendarDate,
   formatCalendarDateLong,
-  normalizeCalendarMonth,
   normalizeWeekStart,
+  resolveCalendarMonth,
 } from "@/lib/calendar-values";
 import { occurrenceStatusLabels } from "@/lib/occurrence-status";
 import {
@@ -31,9 +30,8 @@ export default async function MonthPage({ searchParams }: PageProps<"/mes">) {
     typeof params.month === "string" ? params.month : undefined;
   const today = currentCalendarDate();
   const currentMonth = today.slice(0, 7);
-  const month = normalizeCalendarMonth(requestedMonth, currentMonth);
-  if (!calendarMonthSchema.safeParse(requestedMonth).success)
-    redirect(`/mes?month=${month}`);
+  const month = resolveCalendarMonth(requestedMonth, currentMonth);
+  if (requestedMonth === undefined) redirect(`/mes?month=${month}`);
 
   const planner = await getMonthlyPlanner(month, today);
   return (

@@ -1,10 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { calendarDateSchema, normalizeWeekStart } from "@/lib/calendar-values";
 import { idSchema, occurrenceMoveSchema } from "@/lib/domain-validation";
+import {
+  revalidateEventPaths,
+  revalidateOccurrencePaths,
+} from "@/lib/cache-invalidation";
 import {
   eventFormToInput,
   occurrenceFormToInput,
@@ -49,10 +52,7 @@ export async function addOccurrenceAction(
       activityId: data.activityId,
       scheduledDate: data.date,
     });
-    revalidatePath("/semana");
-    revalidatePath("/mes");
-    revalidatePath("/acompanhamento");
-    revalidatePath("/repeticoes");
+    revalidateOccurrencePaths();
     return { ok: true, message: "Atividade adicionada à semana." };
   } catch (error) {
     return { ok: false, message: actionError(error) };
@@ -64,10 +64,7 @@ export async function moveOccurrenceAction(
 ): Promise<PlannerActionResult> {
   try {
     await moveOccurrence(occurrenceMoveSchema.parse(input));
-    revalidatePath("/semana");
-    revalidatePath("/mes");
-    revalidatePath("/acompanhamento");
-    revalidatePath("/repeticoes");
+    revalidateOccurrencePaths();
     return { ok: true, message: "Ocorrência movida." };
   } catch (error) {
     return { ok: false, message: actionError(error) };
@@ -79,10 +76,7 @@ export async function deleteOccurrenceAction(
 ): Promise<PlannerActionResult> {
   try {
     await deleteOccurrence(idSchema.parse(id));
-    revalidatePath("/semana");
-    revalidatePath("/mes");
-    revalidatePath("/acompanhamento");
-    revalidatePath("/repeticoes");
+    revalidateOccurrencePaths();
     return { ok: true, message: "Ocorrência removida." };
   } catch (error) {
     return { ok: false, message: actionError(error) };
@@ -94,8 +88,7 @@ export async function cancelEventAction(
 ): Promise<PlannerActionResult> {
   try {
     await cancelCalendarEvent(idSchema.parse(id));
-    revalidatePath("/semana");
-    revalidatePath("/mes");
+    revalidateEventPaths();
     return { ok: true, message: "Evento cancelado." };
   } catch (error) {
     return { ok: false, message: actionError(error) };
@@ -107,9 +100,7 @@ export async function deleteEventAction(
 ): Promise<PlannerActionResult> {
   try {
     await deleteCalendarEvent(idSchema.parse(id));
-    revalidatePath("/semana");
-    revalidatePath("/dia");
-    revalidatePath("/mes");
+    revalidateEventPaths();
     return { ok: true, message: "Evento excluído." };
   } catch (error) {
     return { ok: false, message: actionError(error) };
@@ -137,10 +128,7 @@ export async function updateOccurrenceAction(
     return { message: actionError(error), values: plannerFormValues(formData) };
   }
 
-  revalidatePath("/semana");
-  revalidatePath("/mes");
-  revalidatePath("/acompanhamento");
-  revalidatePath("/repeticoes");
+  revalidateOccurrencePaths();
   redirect(
     `/semana?week=${normalizeWeekStart(result.data.scheduledDate)}&notice=occurrence-updated`,
   );
@@ -162,8 +150,7 @@ export async function createEventAction(
   } catch (error) {
     return { message: actionError(error), values: plannerFormValues(formData) };
   }
-  revalidatePath("/semana");
-  revalidatePath("/mes");
+  revalidateEventPaths();
   redirect(
     `/semana?week=${normalizeWeekStart(result.data.eventDate)}&notice=event-created`,
   );
@@ -188,8 +175,7 @@ export async function updateEventAction(
   } catch (error) {
     return { message: actionError(error), values: plannerFormValues(formData) };
   }
-  revalidatePath("/semana");
-  revalidatePath("/mes");
+  revalidateEventPaths();
   redirect(
     `/semana?week=${normalizeWeekStart(result.data.eventDate)}&notice=event-updated`,
   );

@@ -7,6 +7,7 @@ import {
 import {
   calculateTrackingAnalytics,
   normalizeTrackingFilters,
+  validateTrackingPeriod,
   TRACKING_PAGE_SIZE,
   type RawTrackingFilters,
   type TrackingAnalyticOccurrence,
@@ -35,6 +36,7 @@ export async function getTrackingDashboard(
   rawFilters: RawTrackingFilters,
   today: string,
 ) {
+  validateTrackingPeriod(rawFilters, today);
   const activities = await prisma.activity.findMany({
     orderBy: [{ name: "asc" }, { id: "asc" }],
     select: { id: true, name: true, active: true },

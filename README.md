@@ -65,6 +65,7 @@ executado em container Docker.
 ### Acompanhamento
 
 - Período padrão do primeiro dia do mês atual até hoje.
+- Intervalo máximo de 366 dias, contando as datas inicial e final.
 - Filtros por período, atividade e status mantidos na URL.
 - Contagem de planejadas, concluídas, puladas e total.
 - Taxa de conclusão: `concluídas / total × 100`.
@@ -523,6 +524,10 @@ npm run lint
 npm run typecheck
 npm run build
 ```
+
+O `typecheck` executa `next typegen` antes do TypeScript, portanto funciona em
+um clone limpo sem depender de uma build anterior. A pasta `.next` continua
+sendo apenas um artefato gerado e não deve ser versionada.
 
 A suíte de integração usa identificadores exclusivos e remove somente seus
 próprios dados. Ela não usa mocks como substituto do PostgreSQL.

@@ -11,6 +11,7 @@ import {
 import type { OccurrenceStatusValue } from "@/lib/occurrence-status";
 
 export const TRACKING_PAGE_SIZE = 25;
+export const MAX_TRACKING_RANGE_DAYS = 366;
 export type TrackingStatusFilter = "ALL" | OccurrenceStatusValue;
 
 export type RawTrackingFilters = {
@@ -29,25 +30,67 @@ export type TrackingFilters = {
   page: number;
 };
 
+export class TrackingPeriodError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TrackingPeriodError";
+  }
+}
+
+export function validateTrackingPeriod(raw: RawTrackingFilters, today: string) {
+  const defaultFrom = `${today.slice(0, 7)}-01`;
+  const hasFrom = raw.from !== undefined;
+  const hasTo = raw.to !== undefined;
+  if (!hasFrom && !hasTo)
+    return {
+      from: defaultFrom,
+      requestedTo: today,
+      to: today,
+      usedDefaultPeriod: true,
+      toWasLimited: false,
+    };
+  if (!hasFrom || !hasTo)
+    throw new TrackingPeriodError(
+      "Informe as datas inicial e final no formato YYYY-MM-DD.",
+    );
+  const fromResult = calendarDateSchema.safeParse(raw.from);
+  const toResult = calendarDateSchema.safeParse(raw.to);
+  if (!fromResult.success || !toResult.success)
+    throw new TrackingPeriodError(
+      "Informe datas existentes no formato YYYY-MM-DD.",
+    );
+  const from = fromResult.data;
+  const requestedTo = toResult.data;
+  const to = requestedTo > today ? today : requestedTo;
+  if (from > to)
+    throw new TrackingPeriodError(
+      "A data inicial não pode ser posterior à data final ou ao dia atual.",
+    );
+  const inclusiveDays =
+    Math.round(
+      (parseCalendarDate(to).getTime() - parseCalendarDate(from).getTime()) /
+        86_400_000,
+    ) + 1;
+  if (inclusiveDays > MAX_TRACKING_RANGE_DAYS)
+    throw new TrackingPeriodError(
+      `O acompanhamento aceita no máximo ${MAX_TRACKING_RANGE_DAYS} dias, incluindo as datas inicial e final.`,
+    );
+  return {
+    from,
+    requestedTo,
+    to,
+    usedDefaultPeriod: false,
+    toWasLimited: requestedTo > today,
+  };
+}
+
 export function normalizeTrackingFilters(
   raw: RawTrackingFilters,
   today: string,
   validActivityIds: ReadonlySet<string>,
 ) {
-  const defaultFrom = `${today.slice(0, 7)}-01`;
-  const datesValid =
-    calendarDateSchema.safeParse(raw.from).success &&
-    calendarDateSchema.safeParse(raw.to).success;
-  let from = datesValid ? raw.from! : defaultFrom;
-  let requestedTo = datesValid ? raw.to! : today;
-  let to = requestedTo > today ? today : requestedTo;
-  let usedDefaultPeriod = !datesValid;
-  if (from > to || from > today) {
-    from = defaultFrom;
-    requestedTo = today;
-    to = today;
-    usedDefaultPeriod = true;
-  }
+  const period = validateTrackingPeriod(raw, today);
+  const { from, to, usedDefaultPeriod } = period;
 
   const activity =
     raw.activity && raw.activity !== "all" && validActivityIds.has(raw.activity)
@@ -62,12 +105,12 @@ export function normalizeTrackingFilters(
   return {
     filters: { from, to, activity, status, page } satisfies TrackingFilters,
     period: {
-      requestedFrom: raw.from ?? defaultFrom,
+      requestedFrom: raw.from ?? from,
       requestedTo: raw.to ?? today,
       effectiveFrom: from,
       effectiveTo: to,
       today,
-      toWasLimited: datesValid && requestedTo > today,
+      toWasLimited: period.toWasLimited,
       usedDefaultPeriod,
     },
   };

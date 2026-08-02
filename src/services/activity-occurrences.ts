@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import {
   parseCalendarDate,
   parseLocalTime,
@@ -14,7 +14,6 @@ import {
   occurrenceStatusSchema,
   occurrenceUpdateSchema,
 } from "@/lib/domain-validation";
-import { insertAtSafeIndex, normalizedPositions } from "@/lib/occurrence-order";
 import {
   InvalidOccurrenceTransitionError,
   resolveOccurrenceTransition,
@@ -136,58 +135,11 @@ export function moveOccurrence(input: z.input<typeof occurrenceMoveSchema>) {
     });
     if (!occurrence) throw new DomainError("Ocorrência não encontrada");
 
-    const sourceDate = serializeCalendarDate(occurrence.scheduledDate);
-    const sourceItems = await transaction.activityOccurrence.findMany({
-      where: { scheduledDate: occurrence.scheduledDate },
-      orderBy: [{ position: "asc" }, { id: "asc" }],
-      select: { id: true },
+    await moveOccurrenceInTransaction(transaction, occurrence, {
+      targetDate: data.targetDate,
+      targetIndex: data.targetIndex,
+      unlinkRecurrenceOnDateChange: true,
     });
-
-    if (sourceDate === data.targetDate) {
-      const ordered = insertAtSafeIndex(
-        sourceItems.map(({ id }) => id),
-        occurrence.id,
-        data.targetIndex,
-      );
-      for (const item of normalizedPositions(ordered)) {
-        await transaction.activityOccurrence.update({
-          where: { id: item.id },
-          data: { position: item.position },
-        });
-      }
-    } else {
-      const targetDate = parseCalendarDate(data.targetDate);
-      const targetItems = await transaction.activityOccurrence.findMany({
-        where: { scheduledDate: targetDate },
-        orderBy: [{ position: "asc" }, { id: "asc" }],
-        select: { id: true },
-      });
-      const sourceOrder = sourceItems
-        .map(({ id }) => id)
-        .filter((id) => id !== occurrence.id);
-      const targetOrder = insertAtSafeIndex(
-        targetItems.map(({ id }) => id),
-        occurrence.id,
-        data.targetIndex,
-      );
-
-      for (const item of normalizedPositions(sourceOrder)) {
-        await transaction.activityOccurrence.update({
-          where: { id: item.id },
-          data: { position: item.position },
-        });
-      }
-      for (const item of normalizedPositions(targetOrder)) {
-        await transaction.activityOccurrence.update({
-          where: { id: item.id },
-          data: {
-            scheduledDate: item.id === occurrence.id ? targetDate : undefined,
-            recurrenceId: item.id === occurrence.id ? null : undefined,
-            position: item.position,
-          },
-        });
-      }
-    }
 
     return transaction.activityOccurrence.findUniqueOrThrow({
       where: { id: occurrence.id },
@@ -195,32 +147,153 @@ export function moveOccurrence(input: z.input<typeof occurrenceMoveSchema>) {
   });
 }
 
-export async function editOccurrence(id: string, input: EditOccurrenceInput) {
+type StoredOccurrence = {
+  id: string;
+  scheduledDate: Date;
+};
+
+type MoveWithinTransactionInput = {
+  targetDate: string;
+  targetIndex: number;
+  unlinkRecurrenceOnDateChange: boolean;
+};
+
+export async function moveOccurrenceInTransaction(
+  transaction: Prisma.TransactionClient,
+  occurrence: StoredOccurrence,
+  input: MoveWithinTransactionInput,
+) {
+  const sourceDate = serializeCalendarDate(occurrence.scheduledDate);
+  const sameDate = sourceDate === input.targetDate;
+  const [sourceItems, targetItems] = await Promise.all([
+    transaction.activityOccurrence.findMany({
+      where: { scheduledDate: occurrence.scheduledDate },
+      orderBy: [{ position: "asc" }, { id: "asc" }],
+      select: { id: true },
+    }),
+    sameDate
+      ? Promise.resolve([])
+      : transaction.activityOccurrence.findMany({
+          where: { scheduledDate: parseCalendarDate(input.targetDate) },
+          orderBy: [{ position: "asc" }, { id: "asc" }],
+          select: { id: true },
+        }),
+  ]);
+  const currentIndex = sourceItems.findIndex(({ id }) => id === occurrence.id);
+  if (currentIndex < 0) throw new DomainError("Ocorrência não encontrada");
+  const maximumIndex = sameDate ? sourceItems.length - 1 : targetItems.length;
+  if (input.targetIndex > maximumIndex)
+    throw new DomainError(`A posição deve estar entre 0 e ${maximumIndex}`);
+  if (sameDate && currentIndex === input.targetIndex) return;
+
+  if (sameDate) {
+    await transaction.$executeRaw(Prisma.sql`
+      WITH ordered AS (
+        SELECT id,
+          ROW_NUMBER() OVER (ORDER BY position, id) - 1 AS compact_position
+        FROM activity_occurrences
+        WHERE scheduled_date = ${sourceDate}::date
+          AND id <> ${occurrence.id}::uuid
+      ), desired AS (
+        SELECT id,
+          CASE WHEN compact_position >= ${input.targetIndex}
+            THEN compact_position + 1 ELSE compact_position END AS position
+        FROM ordered
+        UNION ALL
+        SELECT ${occurrence.id}::uuid, ${input.targetIndex}::bigint
+      )
+      UPDATE activity_occurrences AS occurrence
+      SET position = desired.position
+      FROM desired
+      WHERE occurrence.id = desired.id
+    `);
+    return;
+  }
+
+  await transaction.$executeRaw(Prisma.sql`
+    WITH source_order AS (
+      SELECT id,
+        ROW_NUMBER() OVER (ORDER BY position, id) - 1 AS position
+      FROM activity_occurrences
+      WHERE scheduled_date = ${sourceDate}::date
+        AND id <> ${occurrence.id}::uuid
+    ), target_order AS (
+      SELECT id,
+        CASE
+          WHEN ROW_NUMBER() OVER (ORDER BY position, id) - 1 >= ${input.targetIndex}
+            THEN ROW_NUMBER() OVER (ORDER BY position, id)
+          ELSE ROW_NUMBER() OVER (ORDER BY position, id) - 1
+        END AS position
+      FROM activity_occurrences
+      WHERE scheduled_date = ${input.targetDate}::date
+    ), desired AS (
+      SELECT id, position, ${sourceDate}::date AS scheduled_date
+      FROM source_order
+      UNION ALL
+      SELECT id, position, ${input.targetDate}::date
+      FROM target_order
+      UNION ALL
+      SELECT ${occurrence.id}::uuid, ${input.targetIndex}::bigint,
+        ${input.targetDate}::date
+    )
+    UPDATE activity_occurrences AS occurrence
+    SET scheduled_date = desired.scheduled_date,
+        recurrence_id = CASE
+          WHEN occurrence.id = ${occurrence.id}::uuid
+               AND ${input.unlinkRecurrenceOnDateChange}
+            THEN NULL
+          ELSE occurrence.recurrence_id
+        END,
+        position = desired.position
+    FROM desired
+    WHERE occurrence.id = desired.id
+  `);
+}
+
+export function editOccurrence(id: string, input: EditOccurrenceInput) {
   const occurrenceId = idSchema.parse(id);
   const data = occurrenceEditSchema.parse(input);
-  const current = await prisma.activityOccurrence.findUnique({
+  return serializableTransaction((transaction) =>
+    editOccurrenceInTransaction(transaction, occurrenceId, data),
+  );
+}
+
+export async function editOccurrenceInTransaction(
+  transaction: Prisma.TransactionClient,
+  occurrenceId: string,
+  data: z.output<typeof occurrenceEditSchema>,
+) {
+  const current = await transaction.activityOccurrence.findUnique({
     where: { id: occurrenceId },
   });
   if (!current) throw new DomainError("Ocorrência não encontrada");
 
+  const activity = await transaction.activity.findUnique({
+    where: { id: current.activityId },
+    select: { id: true },
+  });
+  if (!activity) throw new DomainError("Atividade não encontrada");
+
+  const dateChanged =
+    serializeCalendarDate(current.scheduledDate) !== data.scheduledDate;
   const identityChanged =
-    serializeCalendarDate(current.scheduledDate) !== data.scheduledDate ||
+    dateChanged ||
     (current.startTime ? serializeLocalTime(current.startTime) : null) !==
       data.startTime ||
     current.durationMinutes !== data.durationMinutes;
 
-  if (serializeCalendarDate(current.scheduledDate) !== data.scheduledDate) {
-    const count = await prisma.activityOccurrence.count({
+  if (dateChanged) {
+    const targetCount = await transaction.activityOccurrence.count({
       where: { scheduledDate: parseCalendarDate(data.scheduledDate) },
     });
-    await moveOccurrence({
-      occurrenceId,
+    await moveOccurrenceInTransaction(transaction, current, {
       targetDate: data.scheduledDate,
-      targetIndex: count,
+      targetIndex: targetCount,
+      unlinkRecurrenceOnDateChange: false,
     });
   }
 
-  return prisma.activityOccurrence.update({
+  return transaction.activityOccurrence.update({
     where: { id: occurrenceId },
     data: {
       startTime: data.startTime ? parseLocalTime(data.startTime) : null,
@@ -348,20 +421,26 @@ export function deleteOccurrence(id: string) {
     });
     if (!occurrence) throw new DomainError("Ocorrência não encontrada");
 
-    await transaction.activityOccurrence.delete({
-      where: { id: occurrenceId },
-    });
-    const remaining = await transaction.activityOccurrence.findMany({
-      where: { scheduledDate: occurrence.scheduledDate },
-      orderBy: [{ position: "asc" }, { id: "asc" }],
-      select: { id: true },
-    });
-    for (const item of normalizedPositions(remaining.map(({ id }) => id))) {
-      await transaction.activityOccurrence.update({
-        where: { id: item.id },
-        data: { position: item.position },
-      });
-    }
+    const date = serializeCalendarDate(occurrence.scheduledDate);
+    await transaction.$executeRaw(Prisma.sql`
+      WITH deleted AS (
+        DELETE FROM activity_occurrences
+        WHERE id = ${occurrenceId}::uuid
+        RETURNING id
+      ), ordered AS (
+        SELECT occurrence.id,
+          ROW_NUMBER() OVER (ORDER BY occurrence.position, occurrence.id) - 1
+            AS compact_position
+        FROM activity_occurrences AS occurrence
+        CROSS JOIN deleted
+        WHERE occurrence.scheduled_date = ${date}::date
+          AND occurrence.id <> ${occurrenceId}::uuid
+      )
+      UPDATE activity_occurrences AS occurrence
+      SET position = ordered.compact_position
+      FROM ordered
+      WHERE occurrence.id = ordered.id
+    `);
     return occurrence;
   });
 }

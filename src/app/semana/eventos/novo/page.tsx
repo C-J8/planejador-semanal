@@ -1,9 +1,9 @@
 import { createEventAction } from "@/app/semana/actions";
 import { PlannerForm } from "@/components/weekly-planner/planner-form";
 import {
-  calendarDateSchema,
   currentCalendarDate,
-  normalizeWeekStart,
+  resolveCalendarDate,
+  resolveWeekStart,
 } from "@/lib/calendar-values";
 
 export default async function NewEventPage({
@@ -13,12 +13,11 @@ export default async function NewEventPage({
 }) {
   const params = await searchParams;
   const requestedDate =
-    typeof params.date === "string" ? params.date : currentCalendarDate();
-  const date = calendarDateSchema.safeParse(requestedDate).success
-    ? requestedDate
-    : currentCalendarDate();
-  const weekStart = normalizeWeekStart(
-    typeof params.week === "string" ? params.week : date,
+    typeof params.date === "string" ? params.date : undefined;
+  const date = resolveCalendarDate(requestedDate, currentCalendarDate());
+  const weekStart = resolveWeekStart(
+    typeof params.week === "string" ? params.week : undefined,
+    date,
   );
 
   return (

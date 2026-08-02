@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateTrackingAnalytics,
+  MAX_TRACKING_RANGE_DAYS,
   normalizeTrackingFilters,
+  TrackingPeriodError,
   trackingSearchParams,
   type TrackingAnalyticOccurrence,
 } from "@/lib/tracking-values";
@@ -26,20 +28,20 @@ describe("normalização dos filtros de acompanhamento", () => {
     ["2026-8-01", "2026-08-20"],
     ["2026-08-01T00:00:00Z", "2026-08-20"],
     ["2026-08-01", "inválida"],
-  ])("aplica período padrão a %s / %s", (from, to) => {
-    expect(
-      normalizeTrackingFilters({ from, to }, today, activityIds).filters,
-    ).toMatchObject({ from: "2026-08-01", to: "2026-08-20" });
+  ])("rejeita o período inválido %s / %s", (from, to) => {
+    expect(() =>
+      normalizeTrackingFilters({ from, to }, today, activityIds),
+    ).toThrow(TrackingPeriodError);
   });
 
-  it("aplica padrão quando a data inicial é posterior à final", () => {
-    expect(
+  it("rejeita quando a data inicial é posterior à final", () => {
+    expect(() =>
       normalizeTrackingFilters(
         { from: "2026-08-15", to: "2026-08-10" },
         today,
         activityIds,
-      ).filters,
-    ).toMatchObject({ from: "2026-08-01", to: "2026-08-20" });
+      ),
+    ).toThrow(TrackingPeriodError);
   });
 
   it("limita a data final futura ao dia atual", () => {
@@ -52,14 +54,38 @@ describe("normalização dos filtros de acompanhamento", () => {
     expect(result.period.toWasLimited).toBe(true);
   });
 
-  it("aplica padrão quando todo o período está no futuro", () => {
-    expect(
+  it("rejeita quando todo o período está no futuro", () => {
+    expect(() =>
       normalizeTrackingFilters(
         { from: "2026-09-01", to: "2026-09-30" },
         today,
         activityIds,
+      ),
+    ).toThrow(TrackingPeriodError);
+  });
+
+  it("rejeita somente uma das datas presente", () => {
+    expect(() =>
+      normalizeTrackingFilters({ from: "2026-08-01" }, today, activityIds),
+    ).toThrow(TrackingPeriodError);
+  });
+
+  it("aceita 366 dias inclusivos e rejeita 367", () => {
+    expect(MAX_TRACKING_RANGE_DAYS).toBe(366);
+    expect(
+      normalizeTrackingFilters(
+        { from: "2025-08-20", to: "2026-08-20" },
+        today,
+        activityIds,
       ).filters,
-    ).toMatchObject({ from: "2026-08-01", to: "2026-08-20" });
+    ).toMatchObject({ from: "2025-08-20", to: "2026-08-20" });
+    expect(() =>
+      normalizeTrackingFilters(
+        { from: "2025-08-19", to: "2026-08-20" },
+        today,
+        activityIds,
+      ),
+    ).toThrow(TrackingPeriodError);
   });
 
   it.each([undefined, "all", "inexistente"])(

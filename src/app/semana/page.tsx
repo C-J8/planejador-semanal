@@ -5,6 +5,7 @@ import {
   currentCalendarDate,
   formatWeekRange,
   normalizeWeekStart,
+  resolveWeekStart,
 } from "@/lib/calendar-values";
 import { getWeeklyPlanner } from "@/services/weekly-planner";
 
@@ -18,7 +19,7 @@ export default async function WeekPage({ searchParams }: PageProps<"/semana">) {
   const params = await searchParams;
   const requestedWeek =
     typeof params.week === "string" ? params.week : undefined;
-  const weekStart = normalizeWeekStart(requestedWeek);
+  const weekStart = resolveWeekStart(requestedWeek);
   const today = currentCalendarDate();
   const planner = await getWeeklyPlanner(weekStart);
   const notice =

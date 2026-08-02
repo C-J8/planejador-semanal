@@ -1,7 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { revalidateOccurrencePaths } from "@/lib/cache-invalidation";
 import { idSchema } from "@/lib/domain-validation";
 import {
   completeOccurrence,
@@ -25,10 +25,7 @@ async function runAction(
 ): Promise<DailyActionResult> {
   try {
     await operation(idSchema.parse(id));
-    revalidatePath("/dia");
-    revalidatePath("/semana");
-    revalidatePath("/mes");
-    revalidatePath("/acompanhamento");
+    revalidateOccurrencePaths();
     return { ok: true, message: successMessage };
   } catch (error) {
     return { ok: false, message: errorMessage(error) };

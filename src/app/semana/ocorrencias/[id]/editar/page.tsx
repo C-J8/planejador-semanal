@@ -36,7 +36,10 @@ export default async function EditOccurrencePage({
           startTime: occurrence.startTime
             ? serializeLocalTime(occurrence.startTime)
             : "",
-          durationMinutes: String(occurrence.durationMinutes),
+          durationMinutes:
+            occurrence.durationMinutes === null
+              ? ""
+              : String(occurrence.durationMinutes),
           notes: occurrence.notes ?? "",
         }}
       />
