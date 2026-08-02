@@ -3,10 +3,11 @@ import path from "node:path";
 
 export default defineConfig({
   resolve: {
-    alias: { "@": path.resolve(__dirname, "src") },
+    alias: { "@": path.resolve(import.meta.dirname, "src") },
   },
   test: {
-    include: ["src/**/*.unit.test.ts"],
+    include: ["src/**/*.integration.test.ts"],
     setupFiles: ["./vitest.setup.ts"],
+    fileParallelism: false,
   },
 });
