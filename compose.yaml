@@ -1,0 +1,29 @@
+name: projeto-planejador
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-planejador}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-planejador_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-planejador}
+      TZ: ${APP_TIMEZONE:-America/Sao_Paulo}
+      PGTZ: ${APP_TIMEZONE:-America/Sao_Paulo}
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - planejador_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-planejador} -d ${POSTGRES_DB:-planejador}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  planejador_postgres_data:

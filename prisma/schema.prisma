@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OccurrenceStatus {
+  PLANNED
+  COMPLETED
+  SKIPPED
+}
+
+enum CalendarEventStatus {
+  SCHEDULED
+  CANCELLED
+}
+
+model Activity {
+  id                     String               @id @default(uuid()) @db.Uuid
+  name                   String               @unique @db.VarChar(100)
+  color                  String               @db.VarChar(7)
+  icon                   String?              @db.VarChar(32)
+  defaultDurationMinutes Int?                 @map("default_duration_minutes")
+  defaultStartTime       DateTime?            @map("default_start_time") @db.Time(0)
+  description            String?              @db.VarChar(2000)
+  active                 Boolean              @default(true)
+  archivedAt             DateTime?            @map("archived_at") @db.Timestamptz(3)
+  createdAt              DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  occurrences            ActivityOccurrence[]
+  weeklyTemplateItems    WeeklyTemplateItem[]
+  recurrences            ActivityRecurrence[]
+
+  @@index([active, name], map: "activities_active_name_idx")
+  @@map("activities")
+}
+
+model ActivityOccurrence {
+  id              String              @id @default(uuid()) @db.Uuid
+  activityId      String              @map("activity_id") @db.Uuid
+  scheduledDate   DateTime            @map("scheduled_date") @db.Date
+  startTime       DateTime?           @map("start_time") @db.Time(0)
+  durationMinutes Int?                @map("duration_minutes")
+  position        Int                 @default(0)
+  status          OccurrenceStatus    @default(PLANNED)
+  notes           String?             @db.VarChar(2000)
+  completedAt     DateTime?           @map("completed_at") @db.Timestamptz(3)
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  activity        Activity            @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  recurrenceId    String?             @map("recurrence_id") @db.Uuid
+  recurrence      ActivityRecurrence? @relation(fields: [recurrenceId], references: [id], onDelete: SetNull)
+
+  @@unique([recurrenceId, scheduledDate], map: "activity_occurrences_recurrence_date_key")
+  @@index([scheduledDate, position], map: "activity_occurrences_date_position_idx")
+  @@index([activityId, scheduledDate], map: "activity_occurrences_activity_date_idx")
+  @@index([status, scheduledDate], map: "activity_occurrences_status_date_idx")
+  @@index([recurrenceId, scheduledDate], map: "activity_occurrences_recurrence_date_idx")
+  @@map("activity_occurrences")
+}
+
+model WeeklyTemplate {
+  id          String               @id @default(uuid()) @db.Uuid
+  name        String               @db.VarChar(80)
+  description String?              @db.VarChar(240)
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  items       WeeklyTemplateItem[]
+
+  @@index([updatedAt], map: "weekly_templates_updated_at_idx")
+  @@map("weekly_templates")
+}
+
+model WeeklyTemplateItem {
+  id               String         @id @default(uuid()) @db.Uuid
+  weeklyTemplateId String         @map("weekly_template_id") @db.Uuid
+  activityId       String         @map("activity_id") @db.Uuid
+  weekday          Int
+  startTime        DateTime?      @map("start_time") @db.Time(0)
+  durationMinutes  Int?           @map("duration_minutes")
+  position         Int            @default(0)
+  weeklyTemplate   WeeklyTemplate @relation(fields: [weeklyTemplateId], references: [id], onDelete: Cascade)
+  activity         Activity       @relation(fields: [activityId], references: [id], onDelete: Restrict)
+
+  @@index([weeklyTemplateId, weekday, position], map: "weekly_template_items_order_idx")
+  @@index([activityId], map: "weekly_template_items_activity_idx")
+  @@map("weekly_template_items")
+}
+
+model ActivityRecurrence {
+  id                String               @id @default(uuid()) @db.Uuid
+  activityId        String               @map("activity_id") @db.Uuid
+  startDate         DateTime             @map("start_date") @db.Date
+  endDate           DateTime             @map("end_date") @db.Date
+  weekdays          Int[]
+  intervalWeeks     Int                  @map("interval_weeks")
+  startTime         DateTime?            @map("start_time") @db.Time(0)
+  durationMinutes   Int?                 @map("duration_minutes")
+  cancelledAt       DateTime?            @map("cancelled_at") @db.Timestamptz(3)
+  cancelledFromDate DateTime?            @map("cancelled_from_date") @db.Date
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  activity          Activity             @relation(fields: [activityId], references: [id], onDelete: Restrict)
+  occurrences       ActivityOccurrence[]
+
+  @@index([activityId, endDate], map: "activity_recurrences_activity_end_idx")
+  @@index([cancelledAt, endDate], map: "activity_recurrences_state_idx")
+  @@map("activity_recurrences")
+}
+
+model CalendarEvent {
+  id              String              @id @default(uuid()) @db.Uuid
+  title           String              @db.VarChar(200)
+  eventDate       DateTime            @map("event_date") @db.Date
+  startTime       DateTime?           @map("start_time") @db.Time(0)
+  durationMinutes Int?                @map("duration_minutes")
+  description     String?             @db.VarChar(2000)
+  status          CalendarEventStatus @default(SCHEDULED)
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([eventDate], map: "events_date_idx")
+  @@index([eventDate, status], map: "events_date_status_idx")
+  @@map("events")
+}
