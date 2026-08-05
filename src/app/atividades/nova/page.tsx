@@ -1,7 +1,15 @@
 import { ActivityForm } from "@/components/activities/activity-form";
 import { createActivityAction } from "@/app/atividades/actions";
+import { safeReturnTo } from "@/lib/return-navigation";
 
-export default function NewActivityPage() {
+export default async function NewActivityPage({
+  searchParams,
+}: PageProps<"/atividades/nova">) {
+  const params = await searchParams;
+  const returnTo = safeReturnTo(
+    typeof params.returnTo === "string" ? params.returnTo : undefined,
+    "/atividades",
+  );
   return (
     <section className="form-page">
       <h1>Nova atividade</h1>
@@ -9,6 +17,7 @@ export default function NewActivityPage() {
       <ActivityForm
         action={createActivityAction}
         submitLabel="Criar atividade"
+        returnTo={returnTo}
       />
     </section>
   );

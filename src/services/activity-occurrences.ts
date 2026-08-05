@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import {
+  addCalendarDays,
+  normalizeWeekStart,
   parseCalendarDate,
   parseLocalTime,
   serializeCalendarDate,
@@ -443,4 +445,17 @@ export function deleteOccurrence(id: string) {
     `);
     return occurrence;
   });
+}
+
+export async function clearWeekOccurrences(weekStart: string) {
+  const start = normalizeWeekStart(weekStart, weekStart);
+  const result = await prisma.activityOccurrence.deleteMany({
+    where: {
+      scheduledDate: {
+        gte: parseCalendarDate(start),
+        lte: parseCalendarDate(addCalendarDays(start, 6)),
+      },
+    },
+  });
+  return result.count;
 }

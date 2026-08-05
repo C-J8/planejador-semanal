@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { updateActivityAction } from "@/app/atividades/actions";
 import { ActivityForm } from "@/components/activities/activity-form";
 import { serializeLocalTime } from "@/lib/calendar-values";
+import { durationMinutesToClock } from "@/lib/activity-form";
 import { idSchema } from "@/lib/domain-validation";
 import { getActivity } from "@/services/activities";
 
@@ -19,7 +20,11 @@ export default async function EditActivityPage({
   return (
     <section className="form-page">
       <h1>Editar atividade</h1>
-      <p>A edição dos padrões não altera ocorrências já existentes.</p>
+      <p>
+        As ocorrências planejadas que ainda usam os padrões anteriores também
+        serão atualizadas. Ajustes manuais e atividades finalizadas são
+        preservados.
+      </p>
       <ActivityForm
         action={updateActivityAction.bind(null, activity.id)}
         submitLabel="Salvar alterações"
@@ -27,10 +32,9 @@ export default async function EditActivityPage({
           name: activity.name,
           color: activity.color,
           icon: activity.icon ?? "",
-          defaultDurationMinutes:
-            activity.defaultDurationMinutes === null
-              ? ""
-              : String(activity.defaultDurationMinutes),
+          defaultDurationMinutes: durationMinutesToClock(
+            activity.defaultDurationMinutes,
+          ),
           defaultStartTime: activity.defaultStartTime
             ? serializeLocalTime(activity.defaultStartTime)
             : "",

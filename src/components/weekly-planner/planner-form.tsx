@@ -13,6 +13,7 @@ type PlannerFormProps = {
   initialValues: Record<string, string>;
   weekStart: string;
   submitLabel: string;
+  returnTo?: string;
 };
 
 export function PlannerForm(props: PlannerFormProps) {
@@ -22,6 +23,11 @@ export function PlannerForm(props: PlannerFormProps) {
 
   return (
     <form action={action} className="activity-form" noValidate>
+      <input
+        type="hidden"
+        name="returnTo"
+        value={props.returnTo ?? `/semana?week=${props.weekStart}`}
+      />
       {props.kind === "event" && (
         <div className="form-field">
           <label htmlFor="title">Título</label>
@@ -124,7 +130,7 @@ export function PlannerForm(props: PlannerFormProps) {
         </button>
         <Link
           className="button secondary"
-          href={`/semana?week=${props.weekStart}`}
+          href={props.returnTo ?? `/semana?week=${props.weekStart}`}
         >
           Cancelar
         </Link>

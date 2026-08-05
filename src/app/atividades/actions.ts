@@ -10,13 +10,14 @@ import {
   validationFields,
 } from "@/lib/activity-form";
 import { idSchema } from "@/lib/domain-validation";
+import { safeReturnTo } from "@/lib/return-navigation";
 import { revalidateActivityPaths } from "@/lib/cache-invalidation";
 import {
   archiveActivity,
   createActivity,
   findActivityByName,
   reactivateActivity,
-  updateActivity,
+  updateActivityAndPlannedOccurrences,
 } from "@/services/activities";
 
 export type ActivityStatusState = { message?: string };
@@ -62,7 +63,12 @@ export async function createActivityAction(
   }
 
   revalidateActivityPaths();
-  redirect("/atividades?notice=created");
+  redirect(
+    safeReturnTo(
+      formData.get("returnTo") ?? undefined,
+      "/atividades?notice=created",
+    ),
+  );
 }
 
 export async function updateActivityAction(
@@ -85,7 +91,10 @@ export async function updateActivityAction(
 
   let active = true;
   try {
-    const activity = await updateActivity(parsedId.data, result.data);
+    const activity = await updateActivityAndPlannedOccurrences(
+      parsedId.data,
+      result.data,
+    );
     active = activity.active;
   } catch (error) {
     const notFound =

@@ -72,11 +72,6 @@ export default async function MonthPage({ searchParams }: PageProps<"/mes">) {
         </Link>
       </nav>
 
-      <div className="month-legend" aria-label="Legenda do calendário">
-        <span>Atividade: Planejada, Concluída ou Pulada</span>
-        <span>Evento: Agendado ou Cancelado</span>
-      </div>
-
       {planner.isEmpty && (
         <p className="month-empty" role="status">
           Nenhuma atividade ou evento encontrado neste mês.

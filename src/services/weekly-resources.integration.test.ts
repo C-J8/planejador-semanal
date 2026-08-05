@@ -9,7 +9,6 @@ import {
   previewRecurrence,
   previewRecurrenceCancellation,
   previewTemplateApplication,
-  previewWeekCopy,
   saveWeekAsTemplate,
 } from "@/services/weekly-resources";
 import {
@@ -114,13 +113,6 @@ describe("Stage 8 no PostgreSQL", () => {
   });
 
   it("copia por multiplicidade, reinicia execução, preserva null, ignora arquivada e evento", async () => {
-    const preview = await previewWeekCopy(source, target, "2026-08-01");
-    expect(preview.totals).toMatchObject({
-      found: 4,
-      create: 2,
-      duplicate: 1,
-      archived: 1,
-    });
     expect(await copyWeek(source, target, "2026-08-01")).toBe(2);
     const copied = await prisma.activityOccurrence.findMany({
       where: {
@@ -314,38 +306,5 @@ describe("Stage 8 no PostgreSQL", () => {
     expect(
       await prisma.activityRecurrence.findUnique({ where: { id: result.id } }),
     ).toMatchObject({ cancelledAt: null, cancelledFromDate: null });
-  });
-
-  it("mantém quantidade constante de queries na prévia, sem N+1 por item", async () => {
-    let enabled = false;
-    let queryCount = 0;
-    const queryEvents = prisma as unknown as {
-      $on(event: "query", callback: () => void): void;
-    };
-    queryEvents.$on("query", () => {
-      if (enabled) queryCount += 1;
-    });
-
-    enabled = true;
-    await previewWeekCopy(source, "2026-11-02", "2026-08-01");
-    enabled = false;
-    const baseline = queryCount;
-
-    await prisma.activityOccurrence.createMany({
-      data: Array.from({ length: 20 }, (_, index) => ({
-        activityId,
-        scheduledDate: parseCalendarDate("2026-08-08"),
-        durationMinutes: 15,
-        position: index,
-      })),
-    });
-    queryCount = 0;
-    enabled = true;
-    await previewWeekCopy(source, "2026-11-09", "2026-08-01");
-    enabled = false;
-
-    expect(baseline).toBeGreaterThan(0);
-    expect(queryCount).toBe(baseline);
-    expect(queryCount).toBeLessThanOrEqual(3);
   });
 });

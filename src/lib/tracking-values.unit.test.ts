@@ -17,9 +17,8 @@ describe("normalização dos filtros de acompanhamento", () => {
     expect(normalizeTrackingFilters({}, today, activityIds).filters).toEqual({
       from: "2026-08-01",
       to: "2026-08-20",
-      activity: "all",
-      status: "ALL",
-      page: 1,
+      activities: [],
+      statuses: [],
     });
   });
 
@@ -93,24 +92,35 @@ describe("normalização dos filtros de acompanhamento", () => {
     (activity) => {
       expect(
         normalizeTrackingFilters({ activity }, today, activityIds).filters
-          .activity,
-      ).toBe("all");
+          .activities,
+      ).toEqual([]);
     },
   );
 
   it("preserva uma atividade existente inclusive se arquivada", () => {
     expect(
       normalizeTrackingFilters({ activity: "activity-2" }, today, activityIds)
-        .filters.activity,
-    ).toBe("activity-2");
+        .filters.activities,
+    ).toEqual(["activity-2"]);
+  });
+
+  it("preserva várias atividades válidas", () => {
+    expect(
+      normalizeTrackingFilters(
+        { activity: ["activity-2", "activity-1"] },
+        today,
+        activityIds,
+      ).filters.activities,
+    ).toEqual(["activity-1", "activity-2"]);
   });
 
   it.each(["ALL", "PLANNED", "COMPLETED", "SKIPPED"] as const)(
     "aceita o status %s",
     (status) => {
       expect(
-        normalizeTrackingFilters({ status }, today, activityIds).filters.status,
-      ).toBe(status);
+        normalizeTrackingFilters({ status }, today, activityIds).filters
+          .statuses,
+      ).toEqual(status === "ALL" ? [] : [status]);
     },
   );
 
@@ -118,23 +128,11 @@ describe("normalização dos filtros de acompanhamento", () => {
     "normaliza status inválido %s",
     (status) => {
       expect(
-        normalizeTrackingFilters({ status }, today, activityIds).filters.status,
-      ).toBe("ALL");
+        normalizeTrackingFilters({ status }, today, activityIds).filters
+          .statuses,
+      ).toEqual([]);
     },
   );
-
-  it.each([
-    ["1", 1],
-    ["25", 25],
-    ["0", 1],
-    ["-1", 1],
-    ["1.5", 1],
-    ["abc", 1],
-  ])("normaliza página %s", (page, expected) => {
-    expect(
-      normalizeTrackingFilters({ page }, today, activityIds).filters.page,
-    ).toBe(expected);
-  });
 });
 
 describe("indicadores compartilhados", () => {
@@ -169,7 +167,7 @@ describe("indicadores compartilhados", () => {
     ).toMatchObject({ totalCount: 0, completionRate: null });
   });
 
-  it("soma snapshots de duração e conta duração ausente", () => {
+  it("soma o tempo das ocorrências concluídas", () => {
     const result = calculateTrackingAnalytics(
       occurrences,
       "2026-07-01",
@@ -178,35 +176,33 @@ describe("indicadores compartilhados", () => {
     expect(result.minutesByActivity[0]).toMatchObject({
       activityName: "Leitura",
       occurrenceCount: 9,
+      completedCount: 5,
       plannedMinutes: 345,
+      investedMinutes: 225,
       occurrencesWithoutDuration: 0,
     });
     expect(result.minutesByActivity[1]).toMatchObject({
       activityName: "Academia",
-      archived: true,
       occurrenceCount: 1,
+      completedCount: 0,
       plannedMinutes: 0,
+      investedMinutes: 0,
       occurrencesWithoutDuration: 1,
     });
   });
 
-  it("preenche semanas vazias e identifica extremidades parciais", () => {
+  it("compara as cinco semanas fixas do mês", () => {
     const result = calculateTrackingAnalytics(
       occurrences,
       "2026-07-01",
       "2026-08-01",
     );
-    expect(result.weeklyFrequency[0]).toMatchObject({
-      weekStart: "2026-06-29",
-      count: 4,
-      partial: true,
-    });
-    expect(result.weeklyFrequency.some(({ count }) => count === 0)).toBe(true);
-    expect(result.weeklyFrequency.at(-1)).toMatchObject({
-      weekStart: "2026-07-27",
-      count: 1,
-      partial: true,
-    });
+    expect(result.monthWeekFrequency.map(({ count }) => count)).toEqual([
+      5, 0, 5, 0, 0,
+    ]);
+    expect(
+      result.monthWeekFrequency.map(({ weekNumber }) => weekNumber),
+    ).toEqual([1, 2, 3, 4, 5]);
   });
 
   it("preenche meses cronologicamente inclusive na mudança de ano", () => {
@@ -231,18 +227,14 @@ describe("indicadores compartilhados", () => {
 
   it("serializa todos os filtros nos links de paginação", () => {
     expect(
-      trackingSearchParams(
-        {
-          from: "2026-07-01",
-          to: "2026-07-31",
-          activity: "activity-1",
-          status: "COMPLETED",
-          page: 1,
-        },
-        2,
-      ),
+      trackingSearchParams({
+        from: "2026-07-01",
+        to: "2026-07-31",
+        activities: ["activity-1"],
+        statuses: ["COMPLETED"],
+      }),
     ).toBe(
-      "from=2026-07-01&to=2026-07-31&activity=activity-1&status=COMPLETED&page=2",
+      "from=2026-07-01&to=2026-07-31&activity=activity-1&status=COMPLETED",
     );
   });
 });

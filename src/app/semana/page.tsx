@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { WeeklyPlanner } from "@/components/weekly-planner/weekly-planner";
+import { WeekActionsMenu } from "@/components/weekly-planner/week-actions-menu";
+import { WeekQuickActions } from "@/components/weekly-planner/week-quick-actions";
 import {
   addCalendarDays,
   currentCalendarDate,
@@ -25,66 +27,49 @@ export default async function WeekPage({ searchParams }: PageProps<"/semana">) {
   const notice =
     typeof params.notice === "string"
       ? (notices[params.notice] ?? params.notice)
-      : undefined;
+      : typeof params.error === "string"
+        ? params.error
+        : undefined;
 
   return (
     <section className="week-page">
-      <div className="week-heading">
+      <div className="week-heading bento-panel">
         <div>
-          <h1>Semana</h1>
-          <p>{formatWeekRange(weekStart)}</p>
+          <h1 className="eyebrow week-page-title">Planner semanal</h1>
+          <div className="week-range-line">
+            <p className="week-range">{formatWeekRange(weekStart)}</p>
+            {weekStart === normalizeWeekStart(today) && (
+              <span className="current-week-label">Semana atual</span>
+            )}
+          </div>
         </div>
-        <Link className="button secondary" href="/atividades">
-          Administrar atividades
-        </Link>
+        <div className="week-toolbar">
+          <nav className="week-navigation" aria-label="Navegação entre semanas">
+            <Link
+              className="icon-button"
+              aria-label="Semana anterior"
+              href={`/semana?week=${addCalendarDays(weekStart, -7)}`}
+            >
+              ←
+            </Link>
+            <Link
+              className="button secondary"
+              href={`/semana?week=${normalizeWeekStart(today)}`}
+            >
+              Hoje
+            </Link>
+            <Link
+              className="icon-button"
+              aria-label="Próxima semana"
+              href={`/semana?week=${addCalendarDays(weekStart, 7)}`}
+            >
+              →
+            </Link>
+          </nav>
+          <WeekQuickActions weekStart={weekStart} />
+          <WeekActionsMenu weekStart={weekStart} today={today} />
+        </div>
       </div>
-
-      <nav className="week-navigation" aria-label="Navegação entre semanas">
-        <Link
-          className="button secondary"
-          href={`/semana?week=${addCalendarDays(weekStart, -7)}`}
-        >
-          Semana anterior
-        </Link>
-        <Link
-          className="button secondary"
-          href={`/semana?week=${normalizeWeekStart(today)}`}
-        >
-          Hoje
-        </Link>
-        <Link
-          className="button secondary"
-          href={`/semana?week=${addCalendarDays(weekStart, 7)}`}
-        >
-          Próxima semana
-        </Link>
-      </nav>
-
-      <section className="weekly-tools" aria-labelledby="weekly-tools-title">
-        <div>
-          <h2 id="weekly-tools-title">Ações semanais</h2>
-          <p>Reutilize seu planejamento sem alterar ocorrências existentes.</p>
-        </div>
-        <nav aria-label="Recursos de planejamento reutilizável">
-          <Link href={`/semana/recursos?mode=copy&source=${weekStart}`}>
-            Copiar semana
-          </Link>
-          <Link href={`/semana/recursos?mode=save-template&week=${weekStart}`}>
-            Salvar como modelo
-          </Link>
-          <Link
-            href={`/semana/recursos?mode=apply-template&target=${weekStart}`}
-          >
-            Aplicar modelo
-          </Link>
-          <Link href={`/semana/recursos?mode=recurrence&start=${today}`}>
-            Criar repetição
-          </Link>
-          <Link href="/modelos">Gerenciar modelos</Link>
-          <Link href="/repeticoes">Gerenciar repetições</Link>
-        </nav>
-      </section>
-
       {notice && (
         <p className="notice" role="status">
           {notice}

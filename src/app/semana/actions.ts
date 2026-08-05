@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { calendarDateSchema, normalizeWeekStart } from "@/lib/calendar-values";
 import { idSchema, occurrenceMoveSchema } from "@/lib/domain-validation";
+import { safeReturnTo } from "@/lib/return-navigation";
 import {
   revalidateEventPaths,
   revalidateOccurrencePaths,
@@ -151,9 +152,11 @@ export async function createEventAction(
     return { message: actionError(error), values: plannerFormValues(formData) };
   }
   revalidateEventPaths();
-  redirect(
+  const returnTo = safeReturnTo(
+    formData.get("returnTo") ?? undefined,
     `/semana?week=${normalizeWeekStart(result.data.eventDate)}&notice=event-created`,
   );
+  redirect(returnTo);
 }
 
 export async function updateEventAction(

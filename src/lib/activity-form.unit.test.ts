@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   activityFormToInput,
+  durationMinutesToClock,
   friendlyActivityError,
   validationFields,
 } from "@/lib/activity-form";
@@ -14,7 +15,7 @@ function validForm() {
   formData.set("name", "  Estudo  ");
   formData.set("color", "#3b82f6");
   formData.set("icon", "");
-  formData.set("defaultDurationMinutes", "45");
+  formData.set("defaultDurationMinutes", "00:45");
   formData.set("defaultStartTime", "");
   formData.set("description", "");
   return formData;
@@ -36,10 +37,19 @@ describe("formulário de atividades", () => {
     });
   });
 
-  it.each(["zero", "1.5", "0", "-1"])("rejeita a duração %s", (duration) => {
-    const formData = validForm();
-    formData.set("defaultDurationMinutes", duration);
-    expect(activityFormToInput(formData).success).toBe(false);
+  it.each(["zero", "1.5", "0", "-1", "01:60", "169:00"])(
+    "rejeita a duração %s",
+    (duration) => {
+      const formData = validForm();
+      formData.set("defaultDurationMinutes", duration);
+      expect(activityFormToInput(formData).success).toBe(false);
+    },
+  );
+
+  it("converte minutos armazenados para HH:MM", () => {
+    expect(durationMinutesToClock(240)).toBe("04:00");
+    expect(durationMinutesToClock(45)).toBe("00:45");
+    expect(durationMinutesToClock(null)).toBe("");
   });
 
   it("aceita duração padrão ausente e preserva null", () => {

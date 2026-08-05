@@ -1,33 +1,27 @@
 import { z } from "zod";
 import {
-  addCalendarDays,
   addCalendarMonths,
   calendarDateSchema,
   formatCalendarMonth,
   getCalendarMonthBounds,
-  normalizeWeekStart,
   parseCalendarDate,
 } from "@/lib/calendar-values";
 import type { OccurrenceStatusValue } from "@/lib/occurrence-status";
 
-export const TRACKING_PAGE_SIZE = 25;
 export const MAX_TRACKING_RANGE_DAYS = 366;
-export type TrackingStatusFilter = "ALL" | OccurrenceStatusValue;
 
 export type RawTrackingFilters = {
   from?: string;
   to?: string;
-  activity?: string;
-  status?: string;
-  page?: string;
+  activity?: string | string[];
+  status?: string | string[];
 };
 
 export type TrackingFilters = {
   from: string;
   to: string;
-  activity: string;
-  status: TrackingStatusFilter;
-  page: number;
+  activities: string[];
+  statuses: OccurrenceStatusValue[];
 };
 
 export class TrackingPeriodError extends Error {
@@ -92,18 +86,20 @@ export function normalizeTrackingFilters(
   const period = validateTrackingPeriod(raw, today);
   const { from, to, usedDefaultPeriod } = period;
 
-  const activity =
-    raw.activity && raw.activity !== "all" && validActivityIds.has(raw.activity)
-      ? raw.activity
-      : "all";
-  const status = z
-    .enum(["ALL", "PLANNED", "COMPLETED", "SKIPPED"])
-    .catch("ALL")
-    .parse(raw.status ?? "ALL");
-  const page = /^[1-9]\d*$/.test(raw.page ?? "") ? Number(raw.page) : 1;
-
+  const activities = [
+    ...new Set(asArray(raw.activity).filter((id) => validActivityIds.has(id))),
+  ].sort();
+  const statusSchema = z.enum(["PLANNED", "COMPLETED", "SKIPPED"]);
+  const statuses = [
+    ...new Set(
+      asArray(raw.status).flatMap((value) => {
+        const parsed = statusSchema.safeParse(value);
+        return parsed.success ? [parsed.data] : [];
+      }),
+    ),
+  ].sort() as OccurrenceStatusValue[];
   return {
-    filters: { from, to, activity, status, page } satisfies TrackingFilters,
+    filters: { from, to, activities, statuses } satisfies TrackingFilters,
     period: {
       requestedFrom: raw.from ?? from,
       requestedTo: raw.to ?? today,
@@ -144,11 +140,13 @@ export function calculateTrackingAnalytics(
       icon: string | null;
       archived: boolean;
       occurrenceCount: number;
+      completedCount: number;
       plannedMinutes: number;
+      investedMinutes: number;
       occurrencesWithoutDuration: number;
     }
   >();
-  const weeklyCounts = new Map<string, number>();
+  const monthWeekCounts = [0, 0, 0, 0, 0];
   const monthlyCounts = new Map<string, number>();
 
   for (const occurrence of occurrences) {
@@ -163,42 +161,37 @@ export function calculateTrackingAnalytics(
       icon: occurrence.activity.icon,
       archived: !occurrence.activity.active,
       occurrenceCount: 0,
+      completedCount: 0,
       plannedMinutes: 0,
+      investedMinutes: 0,
       occurrencesWithoutDuration: 0,
     };
     current.occurrenceCount += 1;
     if (occurrence.durationMinutes === null)
       current.occurrencesWithoutDuration += 1;
     else current.plannedMinutes += occurrence.durationMinutes;
+    if (occurrence.status === "COMPLETED") {
+      current.completedCount += 1;
+      if (occurrence.durationMinutes !== null)
+        current.investedMinutes += occurrence.durationMinutes;
+    }
     activityMap.set(occurrence.activity.id, current);
 
-    const weekStart = normalizeWeekStart(
-      occurrence.scheduledDate,
-      occurrence.scheduledDate,
-    );
-    weeklyCounts.set(weekStart, (weeklyCounts.get(weekStart) ?? 0) + 1);
+    const dayOfMonth = Number(occurrence.scheduledDate.slice(-2));
+    const monthWeekIndex = Math.min(4, Math.floor((dayOfMonth - 1) / 7));
+    monthWeekCounts[monthWeekIndex] += 1;
     const month = occurrence.scheduledDate.slice(0, 7);
     monthlyCounts.set(month, (monthlyCounts.get(month) ?? 0) + 1);
   }
 
   const totalCount = occurrences.length;
-  const weeklyFrequency = [];
-  for (
-    let weekStart = normalizeWeekStart(from, from);
-    weekStart <= to;
-    weekStart = addCalendarDays(weekStart, 7)
-  ) {
-    const weekEnd = addCalendarDays(weekStart, 6);
-    weeklyFrequency.push({
-      weekStart,
-      weekEnd,
-      effectiveFrom: weekStart < from ? from : weekStart,
-      effectiveTo: weekEnd > to ? to : weekEnd,
-      partial: weekStart < from || weekEnd > to,
-      label: formatTrackingWeek(weekStart, weekEnd),
-      count: weeklyCounts.get(weekStart) ?? 0,
-    });
-  }
+  const monthWeekFrequency = monthWeekCounts.map((count, index) => ({
+    weekNumber: index + 1,
+    label: `Semana ${index + 1}`,
+    rangeLabel:
+      index === 4 ? "dias 29–fim" : `dias ${index * 7 + 1}–${index * 7 + 7}`,
+    count,
+  }));
 
   const monthlyFrequency = [];
   for (
@@ -224,34 +217,26 @@ export function calculateTrackingAnalytics(
     },
     minutesByActivity: [...activityMap.values()].sort(
       (a, b) =>
-        b.plannedMinutes - a.plannedMinutes ||
+        b.investedMinutes - a.investedMinutes ||
         a.activityName.localeCompare(b.activityName, "pt-BR") ||
         a.activityId.localeCompare(b.activityId),
     ),
-    weeklyFrequency,
+    monthWeekFrequency,
     monthlyFrequency,
   };
 }
 
-const bucketDateFormatter = new Intl.DateTimeFormat("pt-BR", {
-  timeZone: "UTC",
-  day: "numeric",
-  month: "short",
-});
-
-function formatTrackingWeek(start: string, end: string) {
-  return `${bucketDateFormatter.format(parseCalendarDate(start))} – ${bucketDateFormatter.format(parseCalendarDate(end))}`;
-}
-
-export function trackingSearchParams(
-  filters: TrackingFilters,
-  page = filters.page,
-) {
-  return new URLSearchParams({
+export function trackingSearchParams(filters: TrackingFilters) {
+  const params = new URLSearchParams({
     from: filters.from,
     to: filters.to,
-    activity: filters.activity,
-    status: filters.status,
-    page: String(page),
-  }).toString();
+  });
+  for (const activity of filters.activities)
+    params.append("activity", activity);
+  for (const status of filters.statuses) params.append("status", status);
+  return params.toString();
+}
+
+function asArray(value: string | string[] | undefined) {
+  return value === undefined ? [] : Array.isArray(value) ? value : [value];
 }

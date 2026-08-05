@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { calendarDateSchema, normalizeWeekStart } from "@/lib/calendar-values";
+import {
+  addCalendarDays,
+  calendarDateSchema,
+  normalizeWeekStart,
+} from "@/lib/calendar-values";
 import { idSchema } from "@/lib/domain-validation";
 import {
   recurrenceInputSchema,
@@ -18,6 +22,7 @@ import {
   saveWeekAsTemplate,
   updateWeeklyTemplate,
 } from "@/services/weekly-resources";
+import { clearWeekOccurrences } from "@/services/activity-occurrences";
 import { DomainError } from "@/services/domain-error";
 
 function field(formData: FormData, name: string) {
@@ -50,22 +55,36 @@ function fail(path: string, error: unknown): never {
   );
 }
 
-export async function confirmWeekCopyAction(formData: FormData) {
-  const rawSource = field(formData, "sourceWeek");
-  const rawTarget = field(formData, "targetWeek");
-  let source = rawSource;
-  let target = rawTarget;
-  let created: number;
+export async function copyNextWeekAction(formData: FormData) {
+  const rawWeek = field(formData, "week");
+  let week = rawWeek;
+  let created = 0;
   try {
-    source = normalizeWeekStart(calendarDateSchema.parse(rawSource), rawSource);
-    target = normalizeWeekStart(calendarDateSchema.parse(rawTarget), rawTarget);
-    created = await copyWeek(source, target);
+    week = normalizeWeekStart(calendarDateSchema.parse(rawWeek), rawWeek);
+    const target = addCalendarDays(week, 7);
+    created = await copyWeek(week, target);
   } catch (error) {
-    fail(`/semana/recursos?mode=copy&source=${source}&target=${target}`, error);
+    fail(`/semana?week=${week}`, error);
   }
   refreshStage8();
   redirect(
-    `/semana?week=${target}&notice=${encodeURIComponent(`${created} ocorrência(s) copiada(s).`)}`,
+    `/semana?week=${week}&notice=${encodeURIComponent(`${created} atividade(s) copiada(s) para a próxima semana.`)}`,
+  );
+}
+
+export async function clearCurrentWeekAction(formData: FormData) {
+  const rawWeek = field(formData, "week");
+  let week = rawWeek;
+  let removed = 0;
+  try {
+    week = normalizeWeekStart(calendarDateSchema.parse(rawWeek), rawWeek);
+    removed = await clearWeekOccurrences(week);
+  } catch (error) {
+    fail(`/semana?week=${week}`, error);
+  }
+  refreshStage8();
+  redirect(
+    `/semana?week=${week}&notice=${encodeURIComponent(`${removed} atividade(s) removida(s) da semana.`)}`,
   );
 }
 

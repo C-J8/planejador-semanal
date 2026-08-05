@@ -2,35 +2,15 @@ import type { Prisma } from "@/generated/prisma/client";
 import {
   parseCalendarDate,
   serializeCalendarDate,
-  serializeLocalTime,
 } from "@/lib/calendar-values";
 import {
   calculateTrackingAnalytics,
   normalizeTrackingFilters,
   validateTrackingPeriod,
-  TRACKING_PAGE_SIZE,
   type RawTrackingFilters,
   type TrackingAnalyticOccurrence,
 } from "@/lib/tracking-values";
 import { prisma } from "@/lib/prisma";
-
-export type TrackingHistoryItemDto = {
-  id: string;
-  scheduledDate: string;
-  startTime: string | null;
-  durationMinutes: number | null;
-  position: number;
-  notes: string | null;
-  status: "PLANNED" | "COMPLETED" | "SKIPPED";
-  completedAt: string | null;
-  activity: {
-    id: string;
-    name: string;
-    color: string;
-    icon: string | null;
-    active: boolean;
-  };
-};
 
 export async function getTrackingDashboard(
   rawFilters: RawTrackingFilters,
@@ -52,8 +32,12 @@ export async function getTrackingDashboard(
       gte: parseCalendarDate(filters.from),
       lte: parseCalendarDate(filters.to),
     },
-    ...(filters.activity === "all" ? {} : { activityId: filters.activity }),
-    ...(filters.status === "ALL" ? {} : { status: filters.status }),
+    ...(filters.activities.length === 0
+      ? {}
+      : { activityId: { in: filters.activities } }),
+    ...(filters.statuses.length === 0
+      ? {}
+      : { status: { in: filters.statuses } }),
   };
 
   const analyticRecords = await prisma.activityOccurrence.findMany({
@@ -87,68 +71,18 @@ export async function getTrackingDashboard(
     filters.from,
     filters.to,
   );
-  const totalPages = Math.max(
-    1,
-    Math.ceil(analytics.summary.totalCount / TRACKING_PAGE_SIZE),
-  );
-  const page = Math.min(filters.page, totalPages);
-  filters.page = page;
-
-  const historyRecords = await prisma.activityOccurrence.findMany({
-    where,
-    skip: (page - 1) * TRACKING_PAGE_SIZE,
-    take: TRACKING_PAGE_SIZE,
-    orderBy: [
-      { scheduledDate: "desc" },
-      { startTime: { sort: "asc", nulls: "last" } },
-      { position: "asc" },
-      { id: "asc" },
-    ],
-    include: { activity: true },
-  });
-
   return {
     filters,
     period: normalized.period,
     summary: analytics.summary,
     minutesByActivity: analytics.minutesByActivity,
-    weeklyFrequency: analytics.weeklyFrequency,
+    monthWeekFrequency: analytics.monthWeekFrequency,
     monthlyFrequency: analytics.monthlyFrequency,
     activityOptions: activities.map((activity) => ({
       id: activity.id,
       name: activity.name,
       archived: !activity.active,
     })),
-    history: {
-      items: historyRecords.map((occurrence): TrackingHistoryItemDto => ({
-        id: occurrence.id,
-        scheduledDate: serializeCalendarDate(occurrence.scheduledDate),
-        startTime: occurrence.startTime
-          ? serializeLocalTime(occurrence.startTime)
-          : null,
-        durationMinutes: occurrence.durationMinutes,
-        position: occurrence.position,
-        notes: occurrence.notes,
-        status: occurrence.status,
-        completedAt: occurrence.completedAt?.toISOString() ?? null,
-        activity: {
-          id: occurrence.activity.id,
-          name: occurrence.activity.name,
-          color: occurrence.activity.color,
-          icon: occurrence.activity.icon,
-          active: occurrence.activity.active,
-        },
-      })),
-      total: analytics.summary.totalCount,
-      page,
-      pageSize: TRACKING_PAGE_SIZE,
-      totalPages,
-      fromItem:
-        analytics.summary.totalCount === 0
-          ? 0
-          : (page - 1) * TRACKING_PAGE_SIZE + 1,
-      toItem: Math.min(page * TRACKING_PAGE_SIZE, analytics.summary.totalCount),
-    },
   };
 }
 

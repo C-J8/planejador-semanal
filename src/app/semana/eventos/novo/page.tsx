@@ -5,6 +5,7 @@ import {
   resolveCalendarDate,
   resolveWeekStart,
 } from "@/lib/calendar-values";
+import { safeReturnTo } from "@/lib/return-navigation";
 
 export default async function NewEventPage({
   searchParams,
@@ -19,6 +20,10 @@ export default async function NewEventPage({
     typeof params.week === "string" ? params.week : undefined,
     date,
   );
+  const returnTo = safeReturnTo(
+    typeof params.returnTo === "string" ? params.returnTo : undefined,
+    `/semana?week=${weekStart}`,
+  );
 
   return (
     <section className="form-page">
@@ -29,6 +34,7 @@ export default async function NewEventPage({
         kind="event"
         submitLabel="Criar evento"
         weekStart={weekStart}
+        returnTo={returnTo}
         initialValues={{
           title: "",
           eventDate: date,

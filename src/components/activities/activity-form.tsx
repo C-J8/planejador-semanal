@@ -23,6 +23,7 @@ type ActivityFormProps = {
     >
   >;
   submitLabel: string;
+  returnTo?: string;
 };
 
 const initialState: ActivityFormState = {};
@@ -31,6 +32,7 @@ export function ActivityForm({
   action,
   initialValues = {},
   submitLabel,
+  returnTo = "/atividades",
 }: ActivityFormProps) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const values = { ...initialValues, ...state.values };
@@ -40,6 +42,7 @@ export function ActivityForm({
 
   return (
     <form action={formAction} className="activity-form" noValidate>
+      <input type="hidden" name="returnTo" value={returnTo} />
       <div className="form-field">
         <label htmlFor="name">Nome</label>
         <input
@@ -100,21 +103,19 @@ export function ActivityForm({
 
       <div className="form-row">
         <div className="form-field">
-          <label htmlFor="defaultDurationMinutes">
-            Duração padrão (minutos)
-          </label>
+          <label htmlFor="defaultDurationMinutes">Duração padrão (HH:MM)</label>
           <input
             id="defaultDurationMinutes"
             name="defaultDurationMinutes"
-            type="number"
-            min={1}
-            max={10080}
-            step={1}
+            type="text"
+            inputMode="numeric"
+            placeholder="Ex.: 04:00"
+            pattern="[0-9]{1,3}:[0-5][0-9]"
             defaultValue={values.defaultDurationMinutes ?? ""}
             aria-invalid={Boolean(error("defaultDurationMinutes"))}
             aria-describedby="duration-error"
           />
-          <small>Opcional. Deixe vazio para planejar sem duração padrão.</small>
+          <small>Opcional. Use horas e minutos, por exemplo 04:00.</small>
           <FieldError
             id="duration-error"
             message={error("defaultDurationMinutes")}
@@ -159,7 +160,7 @@ export function ActivityForm({
         <button className="button primary" disabled={pending} type="submit">
           {pending ? "Salvando..." : submitLabel}
         </button>
-        <Link className="button secondary" href="/atividades">
+        <Link className="button secondary" href={returnTo}>
           Cancelar
         </Link>
       </div>

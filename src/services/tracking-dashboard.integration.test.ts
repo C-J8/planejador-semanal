@@ -119,22 +119,12 @@ describe.sequential("acompanhamento no PostgreSQL", () => {
   it("aplica limites inclusivos e exclui período externo e futuro", async () => {
     const dashboard = await getTrackingDashboard({ from, to }, today);
     expect(dashboard.summary.totalCount).toBe(26);
-    expect(
-      dashboard.history.items.every(
-        ({ scheduledDate }) => scheduledDate >= from && scheduledDate <= to,
-      ),
-    ).toBe(true);
 
     const throughToday = await getTrackingDashboard(
       { from, to: today, activity: primaryActivityId },
       today,
     );
-    expect(
-      throughToday.history.items.map(({ scheduledDate }) => scheduledDate),
-    ).toContain(today);
-    expect(
-      throughToday.history.items.map(({ scheduledDate }) => scheduledDate),
-    ).not.toContain("2026-08-02");
+    expect(throughToday.summary.totalCount).toBe(11);
   });
 
   it("calcula o cenário 4/5/1, taxa e minutos usando snapshots", async () => {
@@ -153,7 +143,9 @@ describe.sequential("acompanhamento no PostgreSQL", () => {
     expect(dashboard.minutesByActivity[0]).toMatchObject({
       activityId: primaryActivityId,
       occurrenceCount: 10,
+      completedCount: 5,
       plannedMinutes: 330,
+      investedMinutes: 150,
       occurrencesWithoutDuration: 0,
     });
   });
@@ -168,9 +160,6 @@ describe.sequential("acompanhamento no PostgreSQL", () => {
       today,
     );
     expect(dashboard.summary.totalCount).toBe(total);
-    expect(
-      dashboard.history.items.every((item) => item.status === status),
-    ).toBe(true);
   });
 
   it("normaliza atividade inexistente e mantém eventos fora dos resultados", async () => {
@@ -179,14 +168,11 @@ describe.sequential("acompanhamento no PostgreSQL", () => {
       { from, to, activity: randomUUID() },
       today,
     );
-    expect(invalid.filters.activity).toBe("all");
+    expect(invalid.filters.activities).toEqual([]);
     expect(invalid.summary).toEqual(all.summary);
-    expect(invalid.history.items.map(({ id }) => id)).not.toEqual(
-      expect.arrayContaining(eventIds),
-    );
   });
 
-  it("preenche buckets semanais e mensais vazios", async () => {
+  it("preenche as semanas do mês e os meses vazios", async () => {
     const dashboard = await getTrackingDashboard(
       {
         from: "2026-06-01",
@@ -196,40 +182,15 @@ describe.sequential("acompanhamento no PostgreSQL", () => {
       },
       today,
     );
-    expect(dashboard.weeklyFrequency.some(({ count }) => count === 0)).toBe(
-      true,
-    );
-    expect(
-      dashboard.weeklyFrequency.every(({ weekStart }) => {
-        const date = new Date(`${weekStart}T00:00:00.000Z`);
-        return date.getUTCDay() === 1;
-      }),
-    ).toBe(true);
+    expect(dashboard.monthWeekFrequency.map(({ count }) => count)).toEqual([
+      3, 2, 0, 0, 0,
+    ]);
     expect(
       dashboard.monthlyFrequency.map(({ month, count }) => [month, count]),
     ).toEqual([
       ["2026-06", 0],
       ["2026-07", 5],
     ]);
-  });
-
-  it("pagina somente o histórico sem alterar os indicadores", async () => {
-    const first = await getTrackingDashboard({ from, to, page: "1" }, today);
-    const second = await getTrackingDashboard({ from, to, page: "2" }, today);
-    expect(first.summary).toEqual(second.summary);
-    expect(first.history).toMatchObject({ total: 26, page: 1, pageSize: 25 });
-    expect(first.history.items).toHaveLength(25);
-    expect(second.history).toMatchObject({ total: 26, page: 2 });
-    expect(second.history.items).toHaveLength(1);
-    const orderedDates = first.history.items.map(
-      ({ scheduledDate }) => scheduledDate,
-    );
-    expect(orderedDates).toEqual([...orderedDates].sort().reverse());
-    expect(
-      new Set(
-        [...first.history.items, ...second.history.items].map(({ id }) => id),
-      ).size,
-    ).toBe(26);
   });
 
   it("reflete conclusão diária, movimentação semanal e exclusão", async () => {
@@ -252,12 +213,16 @@ describe.sequential("acompanhamento no PostgreSQL", () => {
       skippedCount: 1,
       totalCount: 25,
     });
-    expect(dashboard.history.items.map(({ id }) => id)).not.toContain(
-      occurrenceToDeleteId,
-    );
     expect(
-      dashboard.history.items.find(({ id }) => id === occurrenceToMoveId),
-    ).toMatchObject({ scheduledDate: "2026-07-20", status: "SKIPPED" });
+      await prisma.activityOccurrence.findUnique({
+        where: { id: occurrenceToDeleteId },
+      }),
+    ).toBeNull();
+    expect(
+      await prisma.activityOccurrence.findUnique({
+        where: { id: occurrenceToMoveId },
+      }),
+    ).toMatchObject({ status: "SKIPPED" });
   });
 
   it("preserva histórico após arquivar e mantém DTO serializável", async () => {
@@ -272,9 +237,6 @@ describe.sequential("acompanhamento no PostgreSQL", () => {
     ).toMatchObject({
       archived: true,
     });
-    expect(
-      dashboard.history.items.every(({ activity }) => !activity.active),
-    ).toBe(true);
     expect(JSON.parse(JSON.stringify(dashboard))).toEqual(dashboard);
   });
 

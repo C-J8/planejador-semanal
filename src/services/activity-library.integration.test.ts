@@ -10,6 +10,7 @@ import {
   listActivities,
   reactivateActivity,
   updateActivity,
+  updateActivityAndPlannedOccurrences,
 } from "@/services/activities";
 import { createOccurrence } from "@/services/activity-occurrences";
 
@@ -43,6 +44,59 @@ describe.sequential("biblioteca de atividades no PostgreSQL", () => {
   const updatedName = `Estudo ${randomUUID()}`;
   let activityId: string;
   let occurrenceId: string;
+
+  it("propaga novos padrões apenas para ocorrências planejadas sem personalização", async () => {
+    const activity = await createActivity({
+      name: `Propagação ${randomUUID()}`,
+      color: "#675DB7",
+      icon: null,
+      defaultDurationMinutes: 30,
+      defaultStartTime: "08:00",
+      description: null,
+    });
+    activityIds.push(activity.id);
+    const inherited = await createOccurrence({
+      activityId: activity.id,
+      scheduledDate: "2027-01-04",
+    });
+    const customized = await createOccurrence({
+      activityId: activity.id,
+      scheduledDate: "2027-01-05",
+      startTime: "10:00",
+      durationMinutes: 50,
+    });
+    const completed = await createOccurrence({
+      activityId: activity.id,
+      scheduledDate: "2027-01-06",
+    });
+    occurrenceIds.push(inherited.id, customized.id, completed.id);
+    await prisma.activityOccurrence.update({
+      where: { id: completed.id },
+      data: { status: "COMPLETED", completedAt: new Date() },
+    });
+
+    await updateActivityAndPlannedOccurrences(activity.id, {
+      defaultDurationMinutes: 60,
+      defaultStartTime: "09:00",
+    });
+
+    const values = await prisma.activityOccurrence.findMany({
+      where: { id: { in: [inherited.id, customized.id, completed.id] } },
+    });
+    const byId = new Map(values.map((item) => [item.id, item]));
+    expect(byId.get(inherited.id)?.durationMinutes).toBe(60);
+    expect(serializeLocalTime(byId.get(inherited.id)!.startTime!)).toBe(
+      "09:00",
+    );
+    expect(byId.get(customized.id)?.durationMinutes).toBe(50);
+    expect(serializeLocalTime(byId.get(customized.id)!.startTime!)).toBe(
+      "10:00",
+    );
+    expect(byId.get(completed.id)?.durationMinutes).toBe(30);
+    expect(serializeLocalTime(byId.get(completed.id)!.startTime!)).toBe(
+      "08:00",
+    );
+  });
 
   it("cria, consulta e persiste uma atividade em uma nova consulta", async () => {
     const created = await createActivity({

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Navigation } from "@/components/navigation";
 import "./globals.css";
 
@@ -15,9 +16,20 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        <header>
-          <div className="container">
-            <strong>Planejador semanal</strong>
+        <header className="app-header">
+          <div className="app-header-inner">
+            <Link
+              className="app-brand"
+              href="/semana"
+              aria-label="Planner, ir para a semana"
+            >
+              <span className="app-brand-mark" aria-hidden="true">
+                P
+              </span>
+              <span>
+                <strong>Planner</strong>
+              </span>
+            </Link>
             <Navigation />
           </div>
         </header>

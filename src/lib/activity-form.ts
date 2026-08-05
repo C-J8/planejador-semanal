@@ -26,6 +26,18 @@ function optionalValue(value: string): string | null {
   return normalized === "" ? null : normalized;
 }
 
+export function durationMinutesToClock(minutes: number | null): string {
+  if (minutes === null) return "";
+  const hours = Math.floor(minutes / 60);
+  return `${String(hours).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
+function clockDurationToMinutes(value: string): number {
+  const match = /^(\d{1,3}):([0-5]\d)$/.exec(value.trim());
+  if (!match) return Number.NaN;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
 export function activityFormToInput(formData: FormData) {
   const duration = optionalValue(
     stringValue(formData, "defaultDurationMinutes"),
@@ -34,7 +46,8 @@ export function activityFormToInput(formData: FormData) {
     name: stringValue(formData, "name"),
     color: stringValue(formData, "color"),
     icon: optionalValue(stringValue(formData, "icon")),
-    defaultDurationMinutes: duration === null ? null : Number(duration),
+    defaultDurationMinutes:
+      duration === null ? null : clockDurationToMinutes(duration),
     defaultStartTime: optionalValue(stringValue(formData, "defaultStartTime")),
     description: optionalValue(stringValue(formData, "description")),
   };

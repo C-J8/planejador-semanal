@@ -1,10 +1,4 @@
 import Link from "next/link";
-import {
-  formatCalendarDateLong,
-  formatSaoPauloInstant,
-} from "@/lib/calendar-values";
-import { occurrenceStatusLabels } from "@/lib/occurrence-status";
-import { trackingSearchParams } from "@/lib/tracking-values";
 import type { TrackingDashboardDto } from "@/services/tracking-dashboard";
 
 export function TrackingDashboard({
@@ -14,13 +8,9 @@ export function TrackingDashboard({
   dashboard: TrackingDashboardDto;
   toWasLimited: boolean;
 }) {
-  const selectedActivity = dashboard.activityOptions.find(
-    ({ id }) => id === dashboard.filters.activity,
+  const selectedActivities = dashboard.activityOptions.filter(({ id }) =>
+    dashboard.filters.activities.includes(id),
   );
-  const statusLabel =
-    dashboard.filters.status === "ALL"
-      ? "Todos os estados"
-      : occurrenceStatusLabels[dashboard.filters.status];
   return (
     <>
       <form className="tracking-filters" action="/acompanhamento" method="get">
@@ -45,33 +35,77 @@ export function TrackingDashboard({
           />
         </div>
         <div className="form-field">
-          <label htmlFor="tracking-activity">Atividade</label>
-          <select
-            id="tracking-activity"
-            name="activity"
-            defaultValue={dashboard.filters.activity}
-          >
-            <option value="all">Todas as atividades</option>
-            {dashboard.activityOptions.map((activity) => (
-              <option value={activity.id} key={activity.id}>
-                {activity.name}
-                {activity.archived ? " — arquivada" : ""}
-              </option>
-            ))}
-          </select>
+          <span className="filter-label">Atividade</span>
+          <details className="multi-filter">
+            <summary>
+              {selectedActivities.length === 0
+                ? "Todas as atividades"
+                : `${selectedActivities.length} selecionadas`}
+            </summary>
+            <div className="multi-filter-options">
+              {dashboard.activityOptions.map((activity) => (
+                <label key={activity.id}>
+                  <input
+                    type="checkbox"
+                    name="activity"
+                    value={activity.id}
+                    defaultChecked={dashboard.filters.activities.includes(
+                      activity.id,
+                    )}
+                  />
+                  <span>
+                    {activity.name}
+                    {activity.archived ? " — arquivada" : ""}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </details>
         </div>
         <div className="form-field">
-          <label htmlFor="tracking-status">Status</label>
-          <select
-            id="tracking-status"
-            name="status"
-            defaultValue={dashboard.filters.status}
-          >
-            <option value="ALL">Todos os estados</option>
-            <option value="PLANNED">Planejada</option>
-            <option value="COMPLETED">Concluída</option>
-            <option value="SKIPPED">Pulada</option>
-          </select>
+          <span className="filter-label">Status</span>
+          <details className="multi-filter">
+            <summary>
+              {dashboard.filters.statuses.length === 0
+                ? "Todos os estados"
+                : `${dashboard.filters.statuses.length} selecionados`}
+            </summary>
+            <div className="multi-filter-options">
+              <label>
+                <input
+                  type="checkbox"
+                  name="status"
+                  value="PLANNED"
+                  defaultChecked={dashboard.filters.statuses.includes(
+                    "PLANNED",
+                  )}
+                />
+                <span>Planejada</span>
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  name="status"
+                  value="COMPLETED"
+                  defaultChecked={dashboard.filters.statuses.includes(
+                    "COMPLETED",
+                  )}
+                />
+                <span>Concluída</span>
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  name="status"
+                  value="SKIPPED"
+                  defaultChecked={dashboard.filters.statuses.includes(
+                    "SKIPPED",
+                  )}
+                />
+                <span>Pulada</span>
+              </label>
+            </div>
+          </details>
         </div>
         <div className="tracking-filter-actions">
           <button className="button primary" type="submit">
@@ -83,11 +117,6 @@ export function TrackingDashboard({
         </div>
       </form>
 
-      <p className="active-filters" role="status">
-        Período de {formatCalendarDateLong(dashboard.filters.from)} até{" "}
-        {formatCalendarDateLong(dashboard.filters.to)} ·{" "}
-        {selectedActivity?.name ?? "Todas as atividades"} · {statusLabel}
-      </p>
       {toWasLimited && (
         <p className="notice">
           A data final futura foi limitada ao dia atual em São Paulo.
@@ -107,18 +136,16 @@ export function TrackingDashboard({
       <div className="tracking-analytics-grid">
         <MinutesByActivity dashboard={dashboard} />
         <FrequencySection
-          title="Frequência semanal"
-          description="Semanas começam na segunda-feira; as extremidades podem representar apenas parte da semana."
-          items={dashboard.weeklyFrequency.map((item) => ({
-            key: item.weekStart,
-            label: item.label,
+          title="Atividades por semana do mês"
+          items={dashboard.monthWeekFrequency.map((item) => ({
+            key: String(item.weekNumber),
+            label: `${item.label} · ${item.rangeLabel}`,
             count: item.count,
-            partial: item.partial,
+            partial: false,
           }))}
         />
         <FrequencySection
-          title="Frequência mensal"
-          description="Os meses nas extremidades consideram somente as datas selecionadas."
+          title="Atividades por mês"
           items={dashboard.monthlyFrequency.map((item) => ({
             key: item.month,
             label: item.label,
@@ -127,7 +154,6 @@ export function TrackingDashboard({
           }))}
         />
       </div>
-      <OccurrenceHistory dashboard={dashboard} />
     </>
   );
 }
@@ -155,26 +181,14 @@ function TrackingSummary({ dashboard }: { dashboard: TrackingDashboardDto }) {
           </div>
         ))}
       </div>
-      <p className="tracking-formula">
-        {dashboard.summary.totalCount} ocorrências no total. Taxa = concluídas ÷
-        total do recorte × 100.
-      </p>
     </section>
   );
 }
 
 function MinutesByActivity({ dashboard }: { dashboard: TrackingDashboardDto }) {
-  const maximum = Math.max(
-    0,
-    ...dashboard.minutesByActivity.map(({ plannedMinutes }) => plannedMinutes),
-  );
   return (
     <section className="tracking-panel" aria-labelledby="minutes-title">
-      <h2 id="minutes-title">Minutos planejados por atividade</h2>
-      <p>
-        Somados a partir da duração salva em cada ocorrência, não de tempo
-        realizado.
-      </p>
+      <h2 id="minutes-title">Tempo investido por atividade</h2>
       {dashboard.minutesByActivity.length === 0 ? (
         <p>Sem atividades neste recorte.</p>
       ) : (
@@ -187,7 +201,8 @@ function MinutesByActivity({ dashboard }: { dashboard: TrackingDashboardDto }) {
                   {item.archived ? " — Arquivada" : ""}
                 </strong>
                 <span>
-                  {item.plannedMinutes} min · {item.occurrenceCount} ocorrências
+                  {item.investedMinutes} de {item.plannedMinutes} min ·{" "}
+                  {item.completedCount} de {item.occurrenceCount} concluídas
                   {item.occurrencesWithoutDuration
                     ? ` · ${item.occurrencesWithoutDuration} sem duração`
                     : ""}
@@ -196,7 +211,7 @@ function MinutesByActivity({ dashboard }: { dashboard: TrackingDashboardDto }) {
               <div className="tracking-bar-track" aria-hidden="true">
                 <span
                   style={{
-                    width: `${maximum === 0 ? 0 : (item.plannedMinutes / maximum) * 100}%`,
+                    width: `${item.plannedMinutes === 0 ? 0 : (item.investedMinutes / item.plannedMinutes) * 100}%`,
                     backgroundColor: item.color,
                   }}
                 />
@@ -211,11 +226,9 @@ function MinutesByActivity({ dashboard }: { dashboard: TrackingDashboardDto }) {
 
 function FrequencySection({
   title,
-  description,
   items,
 }: {
   title: string;
-  description: string;
   items: Array<{
     key: string;
     label: string;
@@ -227,7 +240,6 @@ function FrequencySection({
   return (
     <section className="tracking-panel">
       <h2>{title}</h2>
-      <p>{description}</p>
       <ul className="tracking-bars frequency-bars">
         {items.map((item) => (
           <li key={item.key}>
@@ -248,93 +260,6 @@ function FrequencySection({
           </li>
         ))}
       </ul>
-    </section>
-  );
-}
-
-function OccurrenceHistory({ dashboard }: { dashboard: TrackingDashboardDto }) {
-  const previous = dashboard.history.page - 1;
-  const next = dashboard.history.page + 1;
-  return (
-    <section className="tracking-history" aria-labelledby="history-title">
-      <div className="tracking-history-heading">
-        <div>
-          <h2 id="history-title">Histórico de ocorrências</h2>
-          <p>
-            {dashboard.history.total === 0
-              ? "Nenhum registro"
-              : `${dashboard.history.fromItem}–${dashboard.history.toItem} de ${dashboard.history.total} registros`}
-          </p>
-        </div>
-        <span>
-          Página {dashboard.history.page} de {dashboard.history.totalPages}
-        </span>
-      </div>
-      <div className="tracking-history-list">
-        {dashboard.history.items.map((item) => (
-          <article className="tracking-history-card" key={item.id}>
-            <div>
-              <h3>
-                {item.activity.icon} {item.activity.name}
-              </h3>
-              {!item.activity.active && (
-                <span className="status-badge archived">Arquivada</span>
-              )}
-            </div>
-            <dl>
-              <div>
-                <dt>Data planejada</dt>
-                <dd>{formatCalendarDateLong(item.scheduledDate)}</dd>
-              </div>
-              <div>
-                <dt>Horário</dt>
-                <dd>{item.startTime ?? "Sem horário"}</dd>
-              </div>
-              <div>
-                <dt>Duração planejada</dt>
-                <dd>
-                  {item.durationMinutes === null
-                    ? "Sem duração"
-                    : `${item.durationMinutes} min`}
-                </dd>
-              </div>
-              <div>
-                <dt>Status atual</dt>
-                <dd>{occurrenceStatusLabels[item.status]}</dd>
-              </div>
-            </dl>
-            {item.status === "COMPLETED" && item.completedAt && (
-              <p>Concluída em {formatSaoPauloInstant(item.completedAt)}</p>
-            )}
-            <Link
-              href={`/dia?date=${item.scheduledDate}`}
-              aria-label={`Abrir ${formatCalendarDateLong(item.scheduledDate)}`}
-            >
-              Abrir dia
-            </Link>
-          </article>
-        ))}
-      </div>
-      <nav className="tracking-pagination" aria-label="Paginação do histórico">
-        {previous >= 1 ? (
-          <Link
-            className="button secondary"
-            href={`/acompanhamento?${trackingSearchParams(dashboard.filters, previous)}`}
-          >
-            Página anterior
-          </Link>
-        ) : (
-          <span />
-        )}
-        {next <= dashboard.history.totalPages && (
-          <Link
-            className="button secondary"
-            href={`/acompanhamento?${trackingSearchParams(dashboard.filters, next)}`}
-          >
-            Próxima página
-          </Link>
-        )}
-      </nav>
     </section>
   );
 }

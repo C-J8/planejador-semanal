@@ -235,6 +235,17 @@ export function formatCalendarDateLong(value: string): string {
   return longDateFormatter.format(parseCalendarDate(value));
 }
 
+const numericDateFormatter = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "UTC",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+export function formatCalendarDateNumeric(value: string): string {
+  return numericDateFormatter.format(parseCalendarDate(value));
+}
+
 const monthFormatter = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "UTC",
   month: "long",

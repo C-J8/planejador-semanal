@@ -154,31 +154,6 @@ async function weekCopyCandidates(
   }));
 }
 
-export async function previewWeekCopy(
-  sourceWeek: string,
-  targetWeek: string,
-  today = currentCalendarDate(),
-) {
-  const source = normalizeWeekStart(sourceWeek, sourceWeek);
-  const target = normalizeWeekStart(targetWeek, targetWeek);
-  if (source === target)
-    throw new DomainError("Escolha uma semana de destino diferente");
-  if (addCalendarDays(target, 6) < today)
-    throw new DomainError("Uma semana totalmente passada não pode ser destino");
-  const candidates = await weekCopyCandidates(prisma, source, target);
-  const items = planBatchMerge(
-    candidates,
-    await existingForCandidates(prisma, candidates),
-    today,
-  );
-  return {
-    sourceWeek: source,
-    targetWeek: target,
-    items,
-    totals: totals(items),
-  };
-}
-
 export async function copyWeek(
   sourceWeek: string,
   targetWeek: string,

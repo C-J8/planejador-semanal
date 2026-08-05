@@ -15,9 +15,8 @@ export default async function TrackingPage({
   const raw: RawTrackingFilters = {
     from: stringParam(params.from),
     to: stringParam(params.to),
-    activity: stringParam(params.activity),
-    status: stringParam(params.status),
-    page: stringParam(params.page),
+    activity: params.activity,
+    status: params.status,
   };
   let dashboard: Awaited<ReturnType<typeof getTrackingDashboard>>;
   try {
@@ -42,9 +41,8 @@ export default async function TrackingPage({
   const isCanonical =
     raw.from === dashboard.filters.from &&
     raw.to === dashboard.filters.to &&
-    raw.activity === dashboard.filters.activity &&
-    raw.status === dashboard.filters.status &&
-    raw.page === String(dashboard.filters.page);
+    sameValues(raw.activity, dashboard.filters.activities) &&
+    sameValues(raw.status, dashboard.filters.statuses);
   if (!isCanonical) {
     redirect(`/acompanhamento?${canonicalQuery}${limited ? "&limited=1" : ""}`);
   }
@@ -53,10 +51,6 @@ export default async function TrackingPage({
     <section className="tracking-page">
       <div className="tracking-heading">
         <h1>Acompanhamento</h1>
-        <p>
-          Acompanhe as ocorrências planejadas, concluídas e puladas no período
-          selecionado. Eventos não entram nestes indicadores.
-        </p>
       </div>
       <TrackingDashboard dashboard={dashboard} toWasLimited={limited} />
     </section>
@@ -65,4 +59,12 @@ export default async function TrackingPage({
 
 function stringParam(value: string | string[] | undefined) {
   return typeof value === "string" ? value : undefined;
+}
+
+function sameValues(raw: string | string[] | undefined, normalized: string[]) {
+  const values = raw === undefined ? [] : Array.isArray(raw) ? raw : [raw];
+  return (
+    values.length === normalized.length &&
+    [...values].sort().every((value, index) => value === normalized[index])
+  );
 }

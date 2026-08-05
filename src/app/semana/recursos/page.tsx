@@ -1,22 +1,21 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   currentCalendarDate,
   addCalendarDays,
-  resolveWeekStart,
   formatWeekRange,
+  resolveWeekStart,
 } from "@/lib/calendar-values";
 import {
   previewRecurrence,
   previewTemplateApplication,
   previewTemplateFromWeek,
-  previewWeekCopy,
   listWeeklyTemplates,
   listPlanningActivityOptions,
 } from "@/services/weekly-resources";
 import { DomainError } from "@/services/domain-error";
 import {
   applyTemplateAction,
-  confirmWeekCopyAction,
   createRecurrenceAction,
   saveTemplateAction,
 } from "./actions";
@@ -120,7 +119,7 @@ export default async function WeeklyResourcesPage({
   searchParams: Promise<Params>;
 }) {
   const params = (await searchParams) as Params;
-  const mode = one(params.mode) ?? "copy";
+  const mode = one(params.mode) ?? "save-template";
   const today = currentCalendarDate();
   const week = resolveWeekStart(one(params.week) ?? one(params.source), today);
   const error = one(params.error);
@@ -365,46 +364,7 @@ export default async function WeeklyResourcesPage({
       </>
     );
   } else {
-    const source = resolveWeekStart(one(params.source), week);
-    const targetValue = one(params.target);
-    const target = resolveWeekStart(targetValue, addCalendarDays(source, 7));
-    const preview = targetValue
-      ? await previewWeekCopy(source, target, today).catch(capturePreviewError)
-      : null;
-    content = (
-      <>
-        <form method="get" className="resource-form">
-          <input type="hidden" name="mode" value="copy" />
-          <label>
-            Segunda-feira de origem
-            <input type="date" name="source" required defaultValue={source} />
-          </label>
-          <label>
-            Segunda-feira de destino
-            <input type="date" name="target" required defaultValue={target} />
-          </label>
-          <button className="button secondary">Pré-visualizar cópia</button>
-        </form>
-        {preview && (
-          <>
-            <p>
-              De {formatWeekRange(preview.sourceWeek)} para{" "}
-              {formatWeekRange(preview.targetWeek)}.
-            </p>
-            <Preview preview={preview} />
-            {preview.totals.create > 0 && (
-              <form action={confirmWeekCopyAction}>
-                <input type="hidden" name="sourceWeek" value={source} />
-                <input type="hidden" name="targetWeek" value={target} />
-                <button className="button primary">
-                  Confirmar cópia de {preview.totals.create} ocorrência(s)
-                </button>
-              </form>
-            )}
-          </>
-        )}
-      </>
-    );
+    redirect(`/semana?week=${week}`);
   }
   return (
     <section className="resource-page">
@@ -418,7 +378,6 @@ export default async function WeeklyResourcesPage({
         </Link>
       </div>
       <nav className="resource-tabs">
-        <Link href={`/semana/recursos?mode=copy&source=${week}`}>Copiar</Link>
         <Link href={`/semana/recursos?mode=save-template&week=${week}`}>
           Salvar modelo
         </Link>

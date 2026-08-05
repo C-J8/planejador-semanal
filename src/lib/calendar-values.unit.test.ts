@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calendarDateSchema,
+  formatCalendarDateNumeric,
   localTimeSchema,
   parseCalendarDate,
   parseLocalTime,
@@ -32,6 +33,10 @@ describe("datas de calendário", () => {
   it("mantém o dia no round-trip", () => {
     const value = "2026-08-03";
     expect(serializeCalendarDate(parseCalendarDate(value))).toBe(value);
+  });
+
+  it("formata a data numericamente em português", () => {
+    expect(formatCalendarDateNumeric("2026-08-04")).toBe("04/08/2026");
   });
 
   it("usa padrão somente quando o parâmetro está ausente", () => {
