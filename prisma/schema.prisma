@@ -18,6 +18,24 @@ enum CalendarEventStatus {
   CANCELLED
 }
 
+enum ProgressProvider {
+  CHESS_COM
+  GYM_TRACKER
+  MANUAL
+}
+
+enum ProgressSyncStatus {
+  NEVER_SYNCED
+  SUCCESS
+  ERROR
+}
+
+enum ProgressDirection {
+  HIGHER_IS_BETTER
+  LOWER_IS_BETTER
+  NEUTRAL
+}
+
 model Activity {
   id                     String               @id @default(uuid()) @db.Uuid
   name                   String               @unique @db.VarChar(100)
@@ -33,6 +51,7 @@ model Activity {
   occurrences            ActivityOccurrence[]
   weeklyTemplateItems    WeeklyTemplateItem[]
   recurrences            ActivityRecurrence[]
+  progressSources        ProgressSource[]
 
   @@index([active, name], map: "activities_active_name_idx")
   @@map("activities")
@@ -125,4 +144,62 @@ model CalendarEvent {
   @@index([eventDate], map: "events_date_idx")
   @@index([eventDate, status], map: "events_date_status_idx")
   @@map("events")
+}
+
+model ProgressSource {
+  id                String             @id @default(uuid()) @db.Uuid
+  provider          ProgressProvider   @unique
+  externalAccountId String             @map("external_account_id") @db.VarChar(120)
+  displayName       String?            @map("display_name") @db.VarChar(120)
+  avatarUrl         String?            @map("avatar_url") @db.VarChar(500)
+  profileUrl        String?            @map("profile_url") @db.VarChar(500)
+  activityId        String?            @map("activity_id") @db.Uuid
+  enabled           Boolean            @default(true)
+  lastSyncedAt      DateTime?          @map("last_synced_at") @db.Timestamptz(3)
+  lastSyncStatus    ProgressSyncStatus @default(NEVER_SYNCED) @map("last_sync_status")
+  lastSyncError     String?            @map("last_sync_error") @db.VarChar(500)
+  metadata          Json?
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  activity          Activity?          @relation(fields: [activityId], references: [id], onDelete: SetNull)
+  metrics           ProgressMetric[]
+
+  @@index([activityId], map: "progress_sources_activity_idx")
+  @@map("progress_sources")
+}
+
+model ProgressMetric {
+  id           String                @id @default(uuid()) @db.Uuid
+  sourceId     String                @map("source_id") @db.Uuid
+  key          String                @db.VarChar(80)
+  label        String                @db.VarChar(100)
+  unit         String                @db.VarChar(24)
+  color        String                @db.VarChar(7)
+  direction    ProgressDirection     @default(HIGHER_IS_BETTER)
+  sortOrder    Int                   @default(0) @map("sort_order")
+  metadata     Json?
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  source       ProgressSource        @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  observations ProgressObservation[]
+
+  @@unique([sourceId, key], map: "progress_metrics_source_key_key")
+  @@index([sourceId, sortOrder], map: "progress_metrics_source_order_idx")
+  @@map("progress_metrics")
+}
+
+model ProgressObservation {
+  id          String         @id @default(uuid()) @db.Uuid
+  metricId    String         @map("metric_id") @db.Uuid
+  externalKey String         @map("external_key") @db.VarChar(300)
+  observedAt  DateTime       @map("observed_at") @db.Timestamptz(3)
+  value       Decimal        @db.Decimal(14, 3)
+  metadata    Json?
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  metric      ProgressMetric @relation(fields: [metricId], references: [id], onDelete: Cascade)
+
+  @@unique([metricId, externalKey], map: "progress_observations_metric_external_key")
+  @@index([metricId, observedAt], map: "progress_observations_metric_date_idx")
+  @@map("progress_observations")
 }

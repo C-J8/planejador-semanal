@@ -1,5 +1,140 @@
 @import "tailwindcss";
 
+/* Personal progress: Chess.com and future training metrics. */
+.tracking-navigation {
+  margin-bottom: 1.25rem;
+}
+.tracking-navigation,
+.chess-mode-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.tracking-navigation a,
+.chess-mode-tabs a {
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  background: var(--surface);
+  text-decoration: none;
+}
+.tracking-navigation a[aria-current="page"],
+.chess-mode-tabs a[aria-current="page"] {
+  background: #ece7fa;
+  color: #5c4fb0;
+  text-decoration: none;
+}
+.chess-page {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+.chess-connection {
+  display: grid;
+  gap: 0.75rem;
+}
+.chess-connection h2 {
+  margin-block: 0.4rem;
+  font-size: 1.6rem;
+}
+.chess-sync-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+}
+.chess-sync-form .form-field {
+  flex: 1 1 16rem;
+  max-width: 24rem;
+}
+.chess-sync-form > p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.chess-footnote {
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
+}
+.chess-chart-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.chess-range-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.chess-range-form select {
+  width: auto;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.6rem;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+}
+.chess-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 1.5rem;
+  overflow: visible;
+}
+.chess-chart text {
+  font-size: 12px;
+  fill: #726e81;
+}
+.chess-history {
+  margin-top: 1rem;
+}
+.chess-history summary {
+  cursor: pointer;
+  padding-block: 0.5rem;
+}
+.chess-table-scroll {
+  max-height: 20rem;
+  overflow: auto;
+}
+.chess-history table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.chess-history th,
+.chess-history td {
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  padding: 0.6rem;
+}
+.chess-history caption {
+  padding: 0.5rem;
+  text-align: left;
+}
+.gym-integration-note {
+  border-style: dashed;
+}
+@media (max-width: 640px) {
+  .chess-summary.tracking-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .chess-summary strong {
+    overflow-wrap: anywhere;
+  }
+  .chess-sync-form .form-field {
+    max-width: none;
+  }
+  .chess-chart {
+    min-height: 12rem;
+  }
+  .chess-chart text {
+    font-size: 24px;
+  }
+}
+
 :root {
   --background: #f7f7f5;
   --foreground: #1f2937;

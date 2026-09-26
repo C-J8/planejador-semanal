@@ -5,15 +5,15 @@ import {
   addCalendarDays,
   formatWeekRange,
   resolveWeekStart,
-} from "@/lib/calendar-values";
+} from "@/shared/lib/calendar-values";
 import {
   previewRecurrence,
   previewTemplateApplication,
   previewTemplateFromWeek,
   listWeeklyTemplates,
   listPlanningActivityOptions,
-} from "@/services/weekly-resources";
-import { DomainError } from "@/services/domain-error";
+} from "@/modules/planner/services/weekly-resources";
+import { DomainError } from "@/shared/lib/domain-error";
 import {
   applyTemplateAction,
   createRecurrenceAction,

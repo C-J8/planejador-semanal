@@ -1,4 +1,7 @@
 .next
+.next-daily
+.planner
+backups
 node_modules
 src/generated
 package-lock.json

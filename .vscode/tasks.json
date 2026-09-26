@@ -1,0 +1,90 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Planner: abrir",
+      "type": "shell",
+      "command": "npm.cmd",
+      "args": ["run", "planner:open"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Planner: parar",
+      "type": "shell",
+      "command": "npm.cmd",
+      "args": ["run", "planner:stop"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Planner: desenvolver",
+      "type": "shell",
+      "command": "npm.cmd",
+      "args": ["run", "planner:dev"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Planner: conferir status",
+      "type": "shell",
+      "command": "npm.cmd",
+      "args": ["run", "planner:status"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Planner: backup dos dados",
+      "type": "shell",
+      "command": "npm.cmd",
+      "args": ["run", "backup"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Planner: conferir tipos",
+      "type": "shell",
+      "command": "npm.cmd",
+      "args": ["run", "typecheck"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "Planner: conferir estilo do código",
+      "type": "shell",
+      "command": "npm.cmd",
+      "args": ["run", "lint"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Planner: testar regras",
+      "type": "shell",
+      "command": "npm.cmd",
+      "args": ["run", "test:unit"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "Planner: testar integração (banco isolado)",
+      "type": "shell",
+      "command": "npm.cmd",
+      "args": ["run", "test:integration"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "Planner: verificar código",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Planner: conferir tipos",
+        "Planner: conferir estilo do código",
+        "Planner: testar regras"
+      ],
+      "problemMatcher": [],
+      "group": { "kind": "test", "isDefault": true }
+    }
+  ]
+}

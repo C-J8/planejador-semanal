@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { ActivityCard } from "@/components/activities/activity-card";
-import { ActivityFilters } from "@/components/activities/activity-filters";
+import { ActivityCard } from "@/modules/activities/components/activity-card";
+import { ActivityFilters } from "@/modules/activities/components/activity-filters";
 import {
   normalizeActivityQuery,
   normalizeActivityStatus,
-} from "@/lib/activity-query";
-import { listActivities } from "@/services/activities";
+} from "@/modules/activities/lib/activity-query";
+import { listActivities } from "@/modules/activities/services/activities";
 
 const notices: Record<string, string> = {
   created: "Atividade criada com sucesso.",

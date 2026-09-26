@@ -6,13 +6,13 @@ import {
   formatCalendarDateLong,
   normalizeWeekStart,
   resolveCalendarMonth,
-} from "@/lib/calendar-values";
-import { occurrenceStatusLabels } from "@/lib/occurrence-status";
+} from "@/shared/lib/calendar-values";
+import { occurrenceStatusLabels } from "@/modules/planner/lib/occurrence-status";
 import {
   getMonthlyPlanner,
   type MonthlyEventDto,
   type MonthlyOccurrenceDto,
-} from "@/services/monthly-planner";
+} from "@/modules/planner/services/monthly-planner";
 
 const weekDays = [
   "Segunda-feira",

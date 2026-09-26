@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { WeeklyPlanner } from "@/components/weekly-planner/weekly-planner";
-import { WeekActionsMenu } from "@/components/weekly-planner/week-actions-menu";
-import { WeekQuickActions } from "@/components/weekly-planner/week-quick-actions";
+import { WeeklyPlanner } from "@/modules/planner/components/weekly-planner";
+import { WeekActionsMenu } from "@/modules/planner/components/week-actions-menu";
+import { WeekQuickActions } from "@/modules/planner/components/week-quick-actions";
 import {
   addCalendarDays,
   currentCalendarDate,
   formatWeekRange,
   normalizeWeekStart,
   resolveWeekStart,
-} from "@/lib/calendar-values";
-import { getWeeklyPlanner } from "@/services/weekly-planner";
+} from "@/shared/lib/calendar-values";
+import { getWeeklyPlanner } from "@/modules/planner/services/weekly-planner";
 
 const notices: Record<string, string> = {
   "occurrence-updated": "Ocorrência atualizada.",

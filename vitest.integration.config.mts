@@ -7,7 +7,7 @@ export default defineConfig({
   },
   test: {
     include: ["src/**/*.integration.test.ts"],
-    setupFiles: ["./vitest.setup.ts"],
+    setupFiles: ["./vitest.integration.setup.ts"],
     fileParallelism: false,
   },
 });

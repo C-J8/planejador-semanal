@@ -1,14 +1,14 @@
 "use server";
 
 import { z } from "zod";
-import { revalidateOccurrencePaths } from "@/lib/cache-invalidation";
-import { idSchema } from "@/lib/domain-validation";
+import { revalidateOccurrencePaths } from "@/shared/lib/cache-invalidation";
+import { idSchema } from "@/shared/lib/domain-validation";
 import {
   completeOccurrence,
   reopenOccurrence,
   skipOccurrence,
-} from "@/services/activity-occurrences";
-import { DomainError } from "@/services/domain-error";
+} from "@/modules/planner/services/activity-occurrences";
+import { DomainError } from "@/shared/lib/domain-error";
 
 export type DailyActionResult = { ok: boolean; message: string };
 

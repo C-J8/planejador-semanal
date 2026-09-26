@@ -15,6 +15,9 @@
 
 # next.js
 /.next/
+/.next-daily/
+/.planner/
+/backups/
 /out/
 
 # production

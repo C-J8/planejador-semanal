@@ -1,6 +1,6 @@
-import { ActivityForm } from "@/components/activities/activity-form";
+import { ActivityForm } from "@/modules/activities/components/activity-form";
 import { createActivityAction } from "@/app/atividades/actions";
-import { safeReturnTo } from "@/lib/return-navigation";
+import { safeReturnTo } from "@/shared/lib/return-navigation";
 
 export default async function NewActivityPage({
   searchParams,

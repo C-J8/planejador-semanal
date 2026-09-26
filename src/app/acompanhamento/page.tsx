@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
-import { TrackingDashboard } from "@/components/tracking/tracking-dashboard";
-import { currentCalendarDate } from "@/lib/calendar-values";
+import { TrackingDashboard } from "@/modules/tracking/components/tracking-dashboard";
+import { currentCalendarDate } from "@/shared/lib/calendar-values";
 import {
   TrackingPeriodError,
   trackingSearchParams,
   type RawTrackingFilters,
-} from "@/lib/tracking-values";
-import { getTrackingDashboard } from "@/services/tracking-dashboard";
+} from "@/modules/tracking/lib/tracking-values";
+import { getTrackingDashboard } from "@/modules/tracking/services/tracking-dashboard";
 
 export default async function TrackingPage({
   searchParams,
@@ -24,15 +24,13 @@ export default async function TrackingPage({
   } catch (error) {
     if (error instanceof TrackingPeriodError)
       return (
-        <section className="tracking-page">
-          <div className="empty-state" role="alert">
-            <h1>Período inválido</h1>
-            <p>{error.message}</p>
-            <a className="button primary" href="/acompanhamento">
-              Usar período padrão
-            </a>
-          </div>
-        </section>
+        <div className="empty-state" role="alert">
+          <h2>Período inválido</h2>
+          <p>{error.message}</p>
+          <a className="button primary" href="/acompanhamento">
+            Usar período padrão
+          </a>
+        </div>
       );
     throw error;
   }
@@ -47,14 +45,7 @@ export default async function TrackingPage({
     redirect(`/acompanhamento?${canonicalQuery}${limited ? "&limited=1" : ""}`);
   }
 
-  return (
-    <section className="tracking-page">
-      <div className="tracking-heading">
-        <h1>Acompanhamento</h1>
-      </div>
-      <TrackingDashboard dashboard={dashboard} toWasLimited={limited} />
-    </section>
-  );
+  return <TrackingDashboard dashboard={dashboard} toWasLimited={limited} />;
 }
 
 function stringParam(value: string | string[] | undefined) {

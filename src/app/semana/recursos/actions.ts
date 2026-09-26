@@ -7,12 +7,12 @@ import {
   addCalendarDays,
   calendarDateSchema,
   normalizeWeekStart,
-} from "@/lib/calendar-values";
-import { idSchema } from "@/lib/domain-validation";
+} from "@/shared/lib/calendar-values";
+import { idSchema } from "@/shared/lib/domain-validation";
 import {
   recurrenceInputSchema,
   templateDetailsSchema,
-} from "@/lib/weekly-resources";
+} from "@/modules/planner/lib/weekly-resources";
 import {
   applyWeeklyTemplate,
   cancelRecurrence,
@@ -21,9 +21,9 @@ import {
   deleteWeeklyTemplate,
   saveWeekAsTemplate,
   updateWeeklyTemplate,
-} from "@/services/weekly-resources";
-import { clearWeekOccurrences } from "@/services/activity-occurrences";
-import { DomainError } from "@/services/domain-error";
+} from "@/modules/planner/services/weekly-resources";
+import { clearWeekOccurrences } from "@/modules/planner/services/activity-occurrences";
+import { DomainError } from "@/shared/lib/domain-error";
 
 function field(formData: FormData, name: string) {
   const value = formData.get(name);

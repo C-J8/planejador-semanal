@@ -7,13 +7,13 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("next/cache", () => ({ revalidatePath: mocks.revalidatePath }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
-vi.mock("@/services/activity-occurrences", () => ({
+vi.mock("@/modules/planner/services/activity-occurrences", () => ({
   createOccurrenceAtEnd: vi.fn(),
   deleteOccurrence: vi.fn(),
   editOccurrence: vi.fn(),
   moveOccurrence: mocks.moveOccurrence,
 }));
-vi.mock("@/services/calendar-events", () => ({
+vi.mock("@/modules/planner/services/calendar-events", () => ({
   cancelCalendarEvent: vi.fn(),
   createCalendarEvent: vi.fn(),
   deleteCalendarEvent: vi.fn(),

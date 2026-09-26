@@ -1,11 +1,11 @@
 import { createEventAction } from "@/app/semana/actions";
-import { PlannerForm } from "@/components/weekly-planner/planner-form";
+import { PlannerForm } from "@/modules/planner/components/planner-form";
 import {
   currentCalendarDate,
   resolveCalendarDate,
   resolveWeekStart,
-} from "@/lib/calendar-values";
-import { safeReturnTo } from "@/lib/return-navigation";
+} from "@/shared/lib/calendar-values";
+import { safeReturnTo } from "@/shared/lib/return-navigation";
 
 export default async function NewEventPage({
   searchParams,

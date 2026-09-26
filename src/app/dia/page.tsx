@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { DailyPlanner } from "@/components/daily-planner/daily-planner";
+import { DailyPlanner } from "@/modules/planner/components/daily-planner";
 import {
   addCalendarDays,
   currentCalendarDate,
   formatCalendarDateLong,
   normalizeWeekStart,
   resolveCalendarDate,
-} from "@/lib/calendar-values";
-import { getDailyPlanner } from "@/services/daily-planner";
+} from "@/shared/lib/calendar-values";
+import { getDailyPlanner } from "@/modules/planner/services/daily-planner";
 
 export default async function DayPage({ searchParams }: PageProps<"/dia">) {
   const params = await searchParams;

@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import { updateActivityAction } from "@/app/atividades/actions";
-import { ActivityForm } from "@/components/activities/activity-form";
-import { serializeLocalTime } from "@/lib/calendar-values";
-import { durationMinutesToClock } from "@/lib/activity-form";
-import { idSchema } from "@/lib/domain-validation";
-import { getActivity } from "@/services/activities";
+import { ActivityForm } from "@/modules/activities/components/activity-form";
+import { serializeLocalTime } from "@/shared/lib/calendar-values";
+import { durationMinutesToClock } from "@/modules/activities/lib/activity-form";
+import { idSchema } from "@/shared/lib/domain-validation";
+import { getActivity } from "@/modules/activities/services/activities";
 
 export default async function EditActivityPage({
   params,

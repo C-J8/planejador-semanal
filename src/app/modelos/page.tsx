@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { formatSaoPauloInstant } from "@/lib/calendar-values";
-import { listWeeklyTemplates } from "@/services/weekly-resources";
+import { formatSaoPauloInstant } from "@/shared/lib/calendar-values";
+import { listWeeklyTemplates } from "@/modules/planner/services/weekly-resources";
 import {
   deleteTemplateAction,
   updateTemplateAction,

@@ -8,17 +8,17 @@ import {
   friendlyActivityError,
   type ActivityFormState,
   validationFields,
-} from "@/lib/activity-form";
-import { idSchema } from "@/lib/domain-validation";
-import { safeReturnTo } from "@/lib/return-navigation";
-import { revalidateActivityPaths } from "@/lib/cache-invalidation";
+} from "@/modules/activities/lib/activity-form";
+import { idSchema } from "@/shared/lib/domain-validation";
+import { safeReturnTo } from "@/shared/lib/return-navigation";
+import { revalidateActivityPaths } from "@/shared/lib/cache-invalidation";
 import {
   archiveActivity,
   createActivity,
   findActivityByName,
   reactivateActivity,
   updateActivityAndPlannedOccurrences,
-} from "@/services/activities";
+} from "@/modules/activities/services/activities";
 
 export type ActivityStatusState = { message?: string };
 

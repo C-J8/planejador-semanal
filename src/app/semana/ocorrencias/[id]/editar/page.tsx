@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
 import { updateOccurrenceAction } from "@/app/semana/actions";
-import { PlannerForm } from "@/components/weekly-planner/planner-form";
+import { PlannerForm } from "@/modules/planner/components/planner-form";
 import {
   normalizeWeekStart,
   serializeCalendarDate,
   serializeLocalTime,
-} from "@/lib/calendar-values";
-import { idSchema } from "@/lib/domain-validation";
-import { getOccurrence } from "@/services/activity-occurrences";
+} from "@/shared/lib/calendar-values";
+import { idSchema } from "@/shared/lib/domain-validation";
+import { getOccurrence } from "@/modules/planner/services/activity-occurrences";
 
 export default async function EditOccurrencePage({
   params,

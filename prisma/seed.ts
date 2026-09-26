@@ -1,5 +1,5 @@
-import { parseLocalTime } from "../src/lib/calendar-values";
-import { prisma } from "../src/lib/prisma";
+import { parseLocalTime } from "@/shared/lib/calendar-values";
+import { prisma } from "@/shared/lib/prisma";
 
 const activities = [
   {

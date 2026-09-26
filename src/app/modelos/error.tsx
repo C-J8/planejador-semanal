@@ -1,3 +1,3 @@
 "use client";
 
-export { ResourceError as default } from "@/components/resource-error";
+export { ResourceError as default } from "@/shared/components/resource-error";

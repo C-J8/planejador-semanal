@@ -2,13 +2,13 @@ import Link from "next/link";
 import {
   currentCalendarDate,
   formatCalendarDateLong,
-} from "@/lib/calendar-values";
+} from "@/shared/lib/calendar-values";
 import {
   listRecurrences,
   previewRecurrenceCancellation,
-} from "@/services/weekly-resources";
+} from "@/modules/planner/services/weekly-resources";
 import { cancelRecurrenceAction } from "@/app/semana/recursos/actions";
-import { DomainError } from "@/services/domain-error";
+import { DomainError } from "@/shared/lib/domain-error";
 
 const weekdays = [
   "segunda",

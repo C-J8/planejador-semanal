@@ -1,0 +1,26 @@
+{
+  "folders": [{ "name": "Planner", "path": "." }],
+  "settings": {
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/.next": true,
+      "**/.next-daily": true,
+      "**/.planner": true,
+      "**/src/generated": true,
+      "**/coverage": true,
+      "**/*.tsbuildinfo": true,
+      "**/next-env.d.ts": true,
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/.next": true,
+      "**/.next-daily": true,
+      "**/.planner": true,
+      "**/src/generated": true,
+      "**/backups": true,
+      "**/package-lock.json": true,
+      "**/.env": true,
+      "**/.env.*": true,
+    },
+  },
+}

@@ -2,33 +2,36 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { calendarDateSchema, normalizeWeekStart } from "@/lib/calendar-values";
-import { idSchema, occurrenceMoveSchema } from "@/lib/domain-validation";
-import { safeReturnTo } from "@/lib/return-navigation";
+import {
+  calendarDateSchema,
+  normalizeWeekStart,
+} from "@/shared/lib/calendar-values";
+import { idSchema, occurrenceMoveSchema } from "@/shared/lib/domain-validation";
+import { safeReturnTo } from "@/shared/lib/return-navigation";
 import {
   revalidateEventPaths,
   revalidateOccurrencePaths,
-} from "@/lib/cache-invalidation";
+} from "@/shared/lib/cache-invalidation";
 import {
   eventFormToInput,
   occurrenceFormToInput,
   plannerFormValues,
   plannerValidationFields,
   type PlannerFormState,
-} from "@/lib/planner-form";
+} from "@/modules/planner/lib/planner-form";
 import {
   createOccurrenceAtEnd,
   deleteOccurrence,
   editOccurrence,
   moveOccurrence,
-} from "@/services/activity-occurrences";
+} from "@/modules/planner/services/activity-occurrences";
 import {
   cancelCalendarEvent,
   createCalendarEvent,
   deleteCalendarEvent,
   updateCalendarEvent,
-} from "@/services/calendar-events";
-import { DomainError } from "@/services/domain-error";
+} from "@/modules/planner/services/calendar-events";
+import { DomainError } from "@/shared/lib/domain-error";
 
 export type PlannerActionResult = { ok: boolean; message: string };
 

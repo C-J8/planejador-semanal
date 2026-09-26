@@ -6,7 +6,7 @@ export default defineConfig({
     alias: { "@": path.resolve(import.meta.dirname, "src") },
   },
   test: {
-    include: ["src/**/*.unit.test.ts"],
+    include: ["src/**/*.unit.test.ts", "scripts/**/*.unit.test.mjs"],
     setupFiles: ["./vitest.setup.ts"],
   },
 });

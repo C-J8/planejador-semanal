@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
 import { updateEventAction } from "@/app/semana/actions";
-import { PlannerForm } from "@/components/weekly-planner/planner-form";
+import { PlannerForm } from "@/modules/planner/components/planner-form";
 import {
   normalizeWeekStart,
   serializeCalendarDate,
   serializeLocalTime,
-} from "@/lib/calendar-values";
-import { idSchema } from "@/lib/domain-validation";
-import { getCalendarEvent } from "@/services/calendar-events";
+} from "@/shared/lib/calendar-values";
+import { idSchema } from "@/shared/lib/domain-validation";
+import { getCalendarEvent } from "@/modules/planner/services/calendar-events";
 
 export default async function EditEventPage({
   params,
