@@ -17,6 +17,8 @@ import {
   health,
 } from "./local/common.mjs";
 import { backup, restore } from "./local/database.mjs";
+import { startGym, stopGym, reportGym } from "./local/gym.mjs";
+import { stopServices, startOptionalGym } from "./local/lifecycle.mjs";
 import {
   sourceFingerprint,
   needsPreparation,
@@ -28,6 +30,9 @@ const command = process.argv[2] ?? "open";
 let port;
 const noBrowser = process.argv.includes("--no-browser");
 async function stop() {
+  await stopServices(stopPlanner, stopGym);
+}
+async function stopPlanner() {
   const state = await readWorker();
   if (!(await control(state))) {
     console.log("Nenhum Planner iniciado pelo atalho esta rodando.");
@@ -129,6 +134,8 @@ async function start(mode) {
   for (let attempt = 0; attempt < 60; attempt++) {
     const current = await readWorker();
     if ((await control(current)) && (await health(port))) {
+      // A Gym failure is reported without taking the working Planner offline.
+      if (!(await startOptionalGym(startGym))) process.exitCode = 1;
       await browser();
       return;
     }
@@ -190,13 +197,14 @@ async function main() {
       await start(command === "open" ? "daily" : "dev");
     else if (command === "stop") await stop();
     else if (command === "prepare") await prepare();
-    else if (command === "status")
+    else if (command === "status") {
       console.log(
         (await control(await readWorker()))
           ? "Planner em execucao."
           : "Planner parado.",
       );
-    else {
+      await reportGym();
+    } else {
       await databaseReady();
       if (command === "backup") await backup();
       else await restore(process.argv[3], process.argv[4]);

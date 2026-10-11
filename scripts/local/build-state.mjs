@@ -79,7 +79,13 @@ export async function sourceFingerprint(root, env = process.env) {
     .filter(
       (key) =>
         key.startsWith("NEXT_PUBLIC_") ||
-        ["DATABASE_URL", "APP_TIMEZONE", "CHESS_COM_USER_AGENT"].includes(key),
+        [
+          "DATABASE_URL",
+          "APP_TIMEZONE",
+          "CHESS_COM_USER_AGENT",
+          "GYM_TRACKER_PATH",
+          "GYM_TRACKER_PORT",
+        ].includes(key),
     )
     .sort()) {
     hash.update(`${key}\0${env[key]}\0`);

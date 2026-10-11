@@ -14,7 +14,11 @@ const resourceLinks = [
   { href: "/acompanhamento", label: "Acompanhamento" },
 ];
 
-export function Navigation() {
+export function Navigation({
+  showAcademia = false,
+}: {
+  showAcademia?: boolean;
+}) {
   const pathname = usePathname();
   const renderLink = (link: { href: string; label: string }) => {
     const current =
@@ -35,7 +39,19 @@ export function Navigation() {
       <div className="view-switcher" aria-label="Visualização do planejamento">
         {viewLinks.map(renderLink)}
       </div>
-      <div className="resource-navigation">{resourceLinks.map(renderLink)}</div>
+      <div className="resource-navigation">
+        {resourceLinks.map(renderLink)}
+        {showAcademia && (
+          <a
+            href="/academia"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Academia (abre em nova aba)"
+          >
+            Academia
+          </a>
+        )}
+      </div>
     </nav>
   );
 }

@@ -1,4 +1,19 @@
-# Integração futura: Planner e Gym Tracker
+# Planner e Gym Tracker
+
+## Acesso pelo atalho, já implementado
+
+Com `GYM_TRACKER_PATH` configurado, **Abrir Planner** inicia o dashboard Streamlit
+e o monitor do TXT. O menu **Academia** abre o dashboard em nova aba.
+**Parar Planner** encerra os processos iniciados pelo atalho, aguardando uma
+importação terminar. Um monitor já iniciado manualmente é preservado.
+
+O supervisor fica no módulo `gym_tracker.desktop` da Academia; o iniciador
+`scripts/local/gym.mjs` do Planner o chama com a configuração do próprio Gym.
+Os bancos continuam separados no servidor compartilhado. Essa integração
+de acesso não copia métricas nem conversas para as tabelas do Planner.
+Veja [uso local](uso-local.md) para configuração e diagnóstico.
+
+## Sincronização de indicadores, próxima etapa
 
 O chat **Acompanhar evolução na academia** descreve um projeto separado em
 `E:\trabalhos\Acad`: Python, Streamlit e PostgreSQL. O pipeline importa TXT do

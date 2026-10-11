@@ -30,7 +30,9 @@ export default function RootLayout({
                 <strong>Planner</strong>
               </span>
             </Link>
-            <Navigation />
+            <Navigation
+              showAcademia={Boolean(process.env.GYM_TRACKER_PATH?.trim())}
+            />
           </div>
         </header>
         <main className="container">{children}</main>

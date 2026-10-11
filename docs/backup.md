@@ -15,6 +15,13 @@ Arquivos `.partial` indicam falha e não devem ser usados para restauração. Ca
 execução cria uma cópia nova; nenhuma cópia anterior é sobrescrita ou removida.
 O preparo da versão de uso também cria backup antes de aplicar migrations.
 
+Com a Academia configurada, o comando também chama o backup do Gym, lendo seu
+próprio `.env`, e salva outro arquivo `gym-*.dump` na mesma pasta. Um manifesto
+`planner-*.dump.json` associa os dois arquivos. O comando só indica sucesso completo
+depois de salvar ambos; se a Academia falhar, o preparo é interrompido e o dump
+do Planner já criado continua válido. Não é uma transação entre os dois bancos:
+cada dump é um snapshot consistente da sua aplicação.
+
 Backups contêm seus dados pessoais. Não são enviados ao GitHub. Mantenha uma
 cópia externa; guardar tudo no mesmo disco não protege contra perda do disco.
 
@@ -40,5 +47,31 @@ Nunca altere/remova o volume pessoal para fazer essa troca. Em um volume existen
 
 ## O que está incluído
 
-Atividades, agenda, modelos, repetições, histórico Chess e migrations do banco.
+Atividades, agenda, modelos, repetições, histórico Chess e migrations do Planner;
+na cópia da Academia, treinos, mensagens, revisões, catálogo e migrations do Gym.
 Código, dependências, configurações `.env` e atalhos não fazem parte do `.dump`.
+
+## Servidor compartilhado com a Academia
+
+Nesta instalação, o servidor do Planner na porta 5434 também hospeda
+`gym_tracker`, `gym_tracker_stage2_csv` e `gym_tracker_stage2_txt`. Os bancos
+continuam separados: a cópia rotineira cobre `planejador` e `gym_tracker` quando
+a Academia está configurada, mas não inclui os dois bancos de comparação.
+Parar o serviço `db` afeta os dois projetos; nunca remova seu volume para
+reinstalar apenas um deles. O banco de testes do Planner continua isolado.
+
+Os backups completos anteriores à consolidação de 29/09/2026 estão em
+`E:\trabalhos\Acad\local_backups\postgres-consolidation-20260929`.
+O guia de uso e recuperação está em `E:\trabalhos\Acad\docs\shared-postgres.md`.
+O importador cria um backup novo em `Acad/local_backups/automatic` antes de uma
+importação nova ou mudança de parser. Arquivo/versão já processados não geram
+outra cópia. Se o backup falhar, nenhum dado é importado; o monitor informa erro
+e tenta novamente. Antes de comandos manuais ou migrations do Gym, faça um backup.
+
+Os dumps não contêm papéis/senhas, `.env` nem arquivos de entrada. A restauração
+de um dump da Academia também pode usar `backup:restore` em um banco novo
+`planner_restore_conferencia_gym`, somente para conferência. Não aponte o Planner
+para esse banco: ele contém o schema da Academia. Uma recuperação efetiva do Gym
+exige conferir os dados e configurar sua própria conexão/proprietário.
+
+Não há limpeza automática de backups. Confira espaço livre e guarde cópias externas.

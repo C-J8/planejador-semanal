@@ -7,10 +7,17 @@ no seu computador, com Node.js e Docker Desktop instalados.
 
 1. Abra **Abrir Planner.cmd**, nesta pasta ou pelo atalho da área de trabalho.
 2. Use o Planner no navegador. O endereço padrão é `http://127.0.0.1:3000`.
+   Clique em **Academia** no menu para abrir os gráficos dos treinos em outra aba.
 3. Quando terminar, use **Parar Planner.cmd**. Fechar a aba não para o servidor.
 
 Abrir Planner prepara automaticamente uma nova versão se você alterou o código.
 Não baixa alterações do GitHub. Parar Planner não apaga dados nem desliga o Docker.
+Com a Academia configurada, o mesmo atalho inicia o Streamlit e o monitor do TXT.
+Parar encerra os processos que o atalho iniciou; importadores abertos manualmente
+continuam ativos. Veja [configuração e uso combinado](docs/uso-local.md).
+
+O [guia principal de uso](docs/uso-local.md) reúne a rotina, a configuração da
+Academia, os backups combinados e o diagnóstico dos serviços.
 
 ## Quero editar
 

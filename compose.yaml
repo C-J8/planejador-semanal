@@ -11,7 +11,7 @@ services:
       TZ: ${APP_TIMEZONE:-America/Sao_Paulo}
       PGTZ: ${APP_TIMEZONE:-America/Sao_Paulo}
     ports:
-      - "${POSTGRES_PORT:-5434}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
     volumes:
       - planejador_postgres_data:/var/lib/postgresql/data
     healthcheck:

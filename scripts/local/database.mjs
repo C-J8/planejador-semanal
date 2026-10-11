@@ -1,10 +1,11 @@
 import { spawn } from "node:child_process";
 import { createWriteStream, createReadStream } from "node:fs";
-import { mkdir, rename, stat } from "node:fs/promises";
+import { mkdir, rename, stat, writeFile } from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { root, run } from "./common.mjs";
+import { backupGym } from "./gym.mjs";
 
 export function assertLocalDatabase(url, config) {
   const target = new URL(url);
@@ -86,6 +87,22 @@ export async function backup() {
   );
   await rename(`${destination}.partial`, destination);
   console.log(`Backup criado: ${destination}`);
+  const gym = await backupGym(directory);
+  if (gym) console.log(`Backup da Academia criado: ${gym.file}`);
+  await writeFile(
+    `${destination}.json`,
+    JSON.stringify(
+      {
+        createdAt: new Date().toISOString(),
+        planner: path.basename(destination),
+        gym: gym ? path.basename(gym.file) : null,
+        note: "Bancos das aplicacoes; nao inclui papeis, configuracoes ou bancos historicos.",
+      },
+      null,
+      2,
+    ),
+    { flag: "wx" },
+  );
   return destination;
 }
 
