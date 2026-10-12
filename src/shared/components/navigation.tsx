@@ -12,6 +12,7 @@ const viewLinks = [
 const resourceLinks = [
   { href: "/atividades", label: "Atividades" },
   { href: "/acompanhamento", label: "Acompanhamento" },
+  { href: "/status", label: "Status" },
 ];
 
 export function Navigation({

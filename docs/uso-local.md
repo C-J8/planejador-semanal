@@ -81,6 +81,26 @@ Não faz seed, não baixa código do GitHub nem instala dependências automatica
 Após editar código, abra novamente; finalize formulários antes do reinício.
 Documentação, testes, dados e backups não causam recompilação.
 
+## Painel de status
+
+O menu **Status** abre `/status` e reúne banco do Planner, última atualização
+bem-sucedida do Chess, dashboard da Academia, importador do TXT, contagem atual
+de pendências e datas dos backups. A tela consulta automaticamente a cada 30
+segundos enquanto estiver visível; **Atualizar status** apenas repete a consulta.
+Não busca partidas, importa mensagens, aprova revisões nem cria backups.
+
+Datas antigas são identificadas como registros anteriores. Arquivos de estado
+ou PIDs não bastam para confirmar que o importador está rodando: a confirmação
+vem do supervisor autenticado. Sem ele, a tela mostra **Não foi possível confirmar**.
+Pendências indisponíveis não são apresentadas como zero. Após atualizar o código,
+reabra o Planner para que a Academia use também a nova consulta de pendências.
+
+O backup é considerado registrado apenas quando o manifesto e todos os arquivos
+necessários existem e não estão vazios. Um aviso aparece após sete dias sem cópia
+completa pelo Planner; nada é removido automaticamente. A data do backup automático
+da Academia aparece separadamente quando seu supervisor está disponível.
+Essa conferência de arquivos não substitui testar uma restauração.
+
 ## Diagnóstico e manutenção
 
 No terminal, na pasta do Planner:
