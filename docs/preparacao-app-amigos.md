@@ -81,13 +81,13 @@ compatíveis. A numeração da série pertence ao exercício dentro da sessão.
 
 Reproduções executadas com o código atual, sem alterar dados:
 
-| Entrada | Comportamento atual | Tratamento necessário |
-| --- | --- | --- |
-| `Triceps corda cima(nfiz) 9.1kg/10rep .. 11.3kg/10rep` | Extrai duas séries sem aviso | Reconhecer exercício não realizado antes de remover comentários |
-| `Supino reto 40kg/4rep/4` | Extrai quatro séries de quatro repetições | Encaminhar abreviação ambígua para revisão; não multiplicar silenciosamente |
-| `Supino reto 40kg/10rep/0rep` | Mantém só a série de dez, sem aviso | Registrar o trecho inválido para revisão |
-| `Supino reto 40kg/10rep/999rep` | Mantém só a série de dez, sem aviso | Registrar o trecho inválido para revisão |
-| `Supino inclinado maquina com anilha` | Detecta equipamento genérico `Máquina` | Preservar a variante explícita com anilha |
+| Entrada                                                | Comportamento atual                       | Tratamento necessário                                                       |
+| ------------------------------------------------------ | ----------------------------------------- | --------------------------------------------------------------------------- |
+| `Triceps corda cima(nfiz) 9.1kg/10rep .. 11.3kg/10rep` | Extrai duas séries sem aviso              | Reconhecer exercício não realizado antes de remover comentários             |
+| `Supino reto 40kg/4rep/4`                              | Extrai quatro séries de quatro repetições | Encaminhar abreviação ambígua para revisão; não multiplicar silenciosamente |
+| `Supino reto 40kg/10rep/0rep`                          | Mantém só a série de dez, sem aviso       | Registrar o trecho inválido para revisão                                    |
+| `Supino reto 40kg/10rep/999rep`                        | Mantém só a série de dez, sem aviso       | Registrar o trecho inválido para revisão                                    |
+| `Supino inclinado maquina com anilha`                  | Detecta equipamento genérico `Máquina`    | Preservar a variante explícita com anilha                                   |
 
 As correções precisam de testes específicos e versão nova do parser. Não
 reprocessar o histórico inteiro automaticamente sem conferir as decisões
@@ -135,13 +135,13 @@ Uma limpeza de caches deve distinguir ambientes ativos e backups válidos.
 Fluxo principal: abrir uma ficha, iniciar treino, registrar cada série com a
 última carga/repetições visíveis, acompanhar o descanso e concluir.
 
-| Área | Primeira entrega |
-| --- | --- |
-| Hoje | Próximo treino, meta semanal e atividade recente dos amigos |
-| Treinar | Fichas A/B/C, registro rápido, descanso e retomada de rascunho |
-| Histórico | Sessões, últimos cinco treinos e recordes por variante |
-| Grupo | Convite, check-in, desafio semanal e ranking de constância |
-| Perfil | Dados da pessoa e preferências de compartilhamento |
+| Área      | Primeira entrega                                               |
+| --------- | -------------------------------------------------------------- |
+| Hoje      | Próximo treino, meta semanal e atividade recente dos amigos    |
+| Treinar   | Fichas A/B/C, registro rápido, descanso e retomada de rascunho |
+| Histórico | Sessões, últimos cinco treinos e recordes por variante         |
+| Grupo     | Convite, check-in, desafio semanal e ranking de constância     |
+| Perfil    | Dados da pessoa e preferências de compartilhamento             |
 
 Concluir um treino pode gerar um único check-in, conforme a regra do desafio.
 Contar presença por dia do grupo evita pontuar cada série ou cada edição.
