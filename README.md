@@ -1,7 +1,13 @@
-# Planner
+# Planner e Academia
 
 Planejamento pessoal por dia, semana e mês, com biblioteca de atividades,
-indicadores de rotina e evolução no Chess.com.
+indicadores de rotina, evolução no Chess.com e acompanhamento de treinos.
+
+O Gym Tracker agora faz parte deste repositório, em `apps/gym-tracker`, com
+o histórico Git dos dois projetos preservado. Consulte o
+[guia da unificação](docs/unificacao-do-repositorio.md) para instalar as duas
+aplicações ou migrar uma instalação existente. O nome do projeto integrado
+ainda será definido.
 
 **Primeiro acesso à pasta?** Leia [COMECE AQUI](COMECE-AQUI.md).
 Para editar, abra `Planner.code-workspace` no VS Code e use **Terminal → Executar
@@ -22,18 +28,23 @@ aplicação e abre o navegador, sem precisar do VS Code.
 ## Primeira instalação
 
 Pré-requisitos: Node.js 20.9+ compatível com Next.js 16, npm e Docker Desktop.
+Para a Academia, instale também Python 3.12 e uv.
 Use `npm.cmd` no PowerShell se a política de execução bloquear `npm.ps1`.
 
 ```powershell
-cd E:\trabalhos\ToDoList
+cd caminho/para/planejador-semanal
 npm.cmd ci
+npm.cmd run gym:install
 # Somente se .env ainda não existir:
 Copy-Item .env.example .env
+Copy-Item apps/gym-tracker/.env.example apps/gym-tracker/.env
 npm.cmd run shortcuts
 npm.cmd run planner:open
 ```
 
-Confira o `.env` antes do preparo. Não sobrescreva sua configuração existente.
+Confira os dois `.env` e configure os bancos conforme o
+[guia da unificação](docs/unificacao-do-repositorio.md). Não sobrescreva sua
+configuração existente.
 O preparo faz backup antes das migrations; não insere dados de exemplo.
 Se o Docker não iniciar automaticamente, abra o Docker Desktop e tente novamente.
 O endereço padrão é [http://127.0.0.1:3000](http://127.0.0.1:3000).
@@ -47,7 +58,9 @@ O endereço padrão é [http://127.0.0.1:3000](http://127.0.0.1:3000).
 - [Backup e restauração sem sobrescrever o banco atual](docs/backup.md)
 - [Organização dos módulos](docs/arquitetura.md)
 - [Funcionalidades e integração Chess.com](docs/funcionalidades.md)
-- [Proposta de integração com o Gym Tracker](docs/gym-tracker-integration.md)
+- [União dos repositórios e instalação conjunta](docs/unificacao-do-repositorio.md)
+- [Gym Tracker: importação, dashboard e comandos](apps/gym-tracker/README.md)
+- [Integração com o Gym Tracker](docs/gym-tracker-integration.md)
 
 ## Estrutura
 
@@ -63,6 +76,7 @@ src/
 prisma/                  Estrutura e migrations do banco
 scripts/                 Inicialização, testes, backup e atalhos
 docs/                    Guias de uso e manutenção
+apps/gym-tracker/         Academia: Streamlit, importação WhatsApp e Alembic
 .vscode/                 Tarefas de uso, desenvolvimento e verificação
 Planner.code-workspace   Abre o projeto no VS Code com menos ruído visual
 ```
@@ -83,6 +97,7 @@ npm.cmd run typecheck
 npm.cmd run lint
 npm.cmd run format:check
 npm.cmd test
+npm.cmd run gym:test
 ```
 
 Os testes de integração iniciam um banco **descartável e exclusivo na porta 5435**.

@@ -1,5 +1,9 @@
 # Comece aqui
 
+O Planner e a Academia agora estão no mesmo repositório. Em um checkout novo,
+comece pelo [guia de instalação conjunta](docs/unificacao-do-repositorio.md).
+O código da Academia fica em `apps/gym-tracker`.
+
 Você não precisa do Codex para usar ou modificar o Planner. Este projeto roda
 no seu computador, com Node.js e Docker Desktop instalados.
 

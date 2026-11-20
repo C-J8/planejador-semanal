@@ -5,8 +5,9 @@
 1. **Abrir Planner** inicia/verifica Docker e PostgreSQL, prepara uma nova versão
    se o código mudou e abre o Planner. Com a Academia configurada, inicia também
    o Streamlit e o importador. O menu **Academia** abre os treinos em outra aba.
-2. Substitua `E:\trabalhos\Acad\whatsapp_acad_export\Conversa do WhatsApp com Acad.txt`
-   por uma exportação atualizada. Não é preciso importar manualmente.
+2. Substitua o TXT indicado em `GYM_IMPORT_FILE`, no `.env` da Academia, por
+   uma exportação atualizada. O caminho é relativo a `apps/gym-tracker` quando
+   não for absoluto. Não é preciso importar manualmente.
 3. **Parar Planner** encerra os processos iniciados pelo atalho, sem apagar dados
    nem desligar o PostgreSQL. Fechar o navegador não para os serviços.
 
@@ -29,12 +30,12 @@ Prefira copiar com nome temporário e substituir o TXT apenas quando a cópia te
 Conteúdo já importado com a mesma versão do parser não gera outra importação.
 Uma atualização do parser reanalisa o arquivo uma vez. Antes de uma importação nova
 ou reprocessamento automático, a Academia salva um backup em
-`E:\trabalhos\Acad\local_backups\automatic`. Se o backup falhar, não altera o banco
+`apps/gym-tracker/local_backups/automatic`, salvo configuração diferente. Se o backup falhar, não altera o banco
 e tenta novamente no próximo ciclo. Mensagens duvidosas ficam para revisão; o monitor
 não chama IA nem aprova cargas por conta própria.
 
 O preparo automático do Planner e `npm.cmd run backup` salvam **os dois bancos
-das aplicações** em `ToDoList/backups/`, com um manifesto ligando os arquivos.
+das aplicações** em `backups/`, na raiz, com um manifesto ligando os arquivos.
 Não incluem `.env`, papéis de acesso nem os bancos históricos de comparação.
 Guarde cópias importantes fora deste disco. Veja [backup e recuperação](backup.md).
 
@@ -43,7 +44,7 @@ Guarde cópias importantes fora deste disco. Veja [backup e recuperação](backu
 No `.env` do Planner:
 
 ```dotenv
-GYM_TRACKER_PATH=../Acad
+GYM_TRACKER_PATH=apps/gym-tracker
 GYM_TRACKER_PORT=8501
 ```
 
@@ -54,6 +55,10 @@ o banco nem as opções de importação do Planner. Se necessário, configure
 Deixe `GYM_TRACKER_PATH` vazio para usar só o Planner; o menu Academia fica oculto.
 Após mudar a configuração, pare e abra novamente.
 
+Na instalação anterior com pastas separadas, `GYM_TRACKER_PATH=../Acad`
+continua válido. Veja o [guia da união](unificacao-do-repositorio.md) antes de
+migrar seus arquivos e configurações.
+
 Na Academia, `DATABASE_URL` aponta para `gym_tracker` em `localhost:5434` e
 `GYM_BACKUP_CONTAINER=projeto-planejador-db-1`. Esse contêiner precisa publicar a
 mesma porta da conexão. O Planner usa `planejador` no mesmo servidor, com tabelas
@@ -62,18 +67,20 @@ e migrations separadas. PostgreSQL e aplicações escutam apenas neste computado
 
 ## Primeira instalação
 
-Instale Node.js compatível e Docker Desktop. No terminal do VS Code:
+Instale Node.js compatível, Python 3.12, uv e Docker Desktop. No terminal do VS Code:
 
 ```powershell
-cd E:\trabalhos\ToDoList
+cd caminho/para/planejador-semanal
 npm.cmd ci
+npm.cmd run gym:install
 # SOMENTE se .env ainda não existe:
 Copy-Item .env.example .env
+Copy-Item apps/gym-tracker/.env.example apps/gym-tracker/.env
 npm.cmd run shortcuts
 ```
 
-Não substitua um `.env` existente. Instale a Academia separadamente seguindo seu
-README. Em computador novo, restaure seus bancos e proprietários; subir apenas
+Não substitua um `.env` existente. Configure a Academia seguindo seu
+[README](../apps/gym-tracker/README.md). Em computador novo, restaure seus bancos e proprietários; subir apenas
 o Compose do Planner não cria os bancos da Academia.
 
 O primeiro preparo faz backup, gera Prisma, aplica migrations pendentes e compila.
@@ -113,12 +120,12 @@ npm.cmd run planner:dev
 ```
 
 `planner:status` informa dashboard e importador separadamente, incluindo o último
-resultado. Para operar só o importador, use os CMDs em `Acad/scripts/maintenance/`.
+resultado. Para operar só o importador, use os CMDs em `apps/gym-tracker/scripts/maintenance/`.
 Eles não são necessários no uso combinado. Desenvolvimento usa os dados reais;
 os testes de integração usam bancos isolados.
 
 - **Academia não abriu:** confira `.env`, `.venv`, porta e
-  `Acad/.gym-tracker/dashboard.log`. O Planner continua disponível; o CMD pausa
+  `apps/gym-tracker/.gym-tracker/dashboard.log`. O Planner continua disponível; o CMD pausa
   para não esconder o erro.
 - **Importador parado:** abra o Planner novamente. Se registrar erro, confira
   `planner:status`, Docker, TXT e configuração do backup.
@@ -134,4 +141,4 @@ Nunca use `docker compose down -v` nos projetos pessoais.
 
 Para editar sem Codex, veja [Comece aqui](../COMECE-AQUI.md) e
 [manual de manutenção](manutencao.md). Detalhes técnicos da automação ficam em
-`E:\trabalhos\Acad\docs\automatic-import.md`.
+[importação automática](../apps/gym-tracker/docs/automatic-import.md).

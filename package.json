@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "gym:install": "uv --directory apps/gym-tracker sync --locked --all-groups",
+    "gym:test": "uv --directory apps/gym-tracker run pytest",
+    "gym:lint": "uv --directory apps/gym-tracker run ruff check .",
+    "gym:format:check": "uv --directory apps/gym-tracker run ruff format --check .",
+    "gym:test:planner": "uv --directory apps/gym-tracker run python scripts/test-planner-integration.py",
     "planner:open": "node scripts/planner.mjs open",
     "planner:stop": "node scripts/planner.mjs stop",
     "planner:prepare": "node scripts/planner.mjs prepare",

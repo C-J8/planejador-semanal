@@ -47,3 +47,19 @@ next-dev.*.log
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Academia: configuracao, exportacoes e dados permanecem privados.
+**/.venv/
+**/.uv-cache/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.gym-tracker/
+**/local_backups/
+**/quality_reports/
+**/whatsapp_*_export/
+*.py[cod]
+*.sqlite*
+*.db
+*.dump
+*.zip

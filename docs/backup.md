@@ -62,7 +62,7 @@ reinstalar apenas um deles. O banco de testes do Planner continua isolado.
 
 Os backups completos anteriores à consolidação de 29/09/2026 estão em
 `E:\trabalhos\Acad\local_backups\postgres-consolidation-20260929`.
-O guia de uso e recuperação está em `E:\trabalhos\Acad\docs\shared-postgres.md`.
+O guia de uso e recuperação está em [PostgreSQL compartilhado](../apps/gym-tracker/docs/shared-postgres.md).
 O importador cria um backup novo em `Acad/local_backups/automatic` antes de uma
 importação nova ou mudança de parser. Arquivo/versão já processados não geram
 outra cópia. Se o backup falhar, nenhum dado é importado; o monitor informa erro

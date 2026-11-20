@@ -15,10 +15,10 @@ Veja [uso local](uso-local.md) para configuração e diagnóstico.
 
 ## Sincronização de indicadores, próxima etapa
 
-O chat **Acompanhar evolução na academia** descreve um projeto separado em
-`E:\trabalhos\Acad`: Python, Streamlit e PostgreSQL. O pipeline importa TXT do
-WhatsApp, normaliza mensagens, passa por parsing/revisão e apresenta séries
-aceitas e ativas. O chat não identifica uma API de exportação pronta.
+A Academia está em `apps/gym-tracker`, neste mesmo repositório: Python,
+Streamlit e PostgreSQL. O pipeline importa TXT do WhatsApp, normaliza mensagens,
+passa por parsing/revisão e apresenta séries aceitas e ativas. A união dos
+repositórios está documentada em [unificação](unificacao-do-repositorio.md).
 
 ## Escopo recomendado
 
@@ -28,8 +28,7 @@ credenciais de escrita nem replicar textos de WhatsApp no Planner.
 
 Começar por dias de treino, volume por exercício e evolução de carga. Comparar
 sempre a mesma variante de exercício, equipamento e base de carga (por halter
-ou total). Uma estimativa de 1RM exige definição e versão da fórmula antes de
-ser integrada; ela não representa um teste físico medido.
+ou total). As métricas utilizadas são carga, repetições, séries e volume.
 
 ## Contrato proposto, ainda não implementado
 

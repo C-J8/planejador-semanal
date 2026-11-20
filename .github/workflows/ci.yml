@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  planner:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://planner_test:planner_test_local@127.0.0.1:5435/planner_test?schema=public
+      APP_TIMEZONE: America/Sao_Paulo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+
+  gym-tracker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/gym-tracker
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: gym_tracker_test
+          POSTGRES_USER: gym_tracker
+          POSTGRES_PASSWORD: gym_tracker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gym_tracker -d gym_tracker_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://gym_tracker:gym_tracker@127.0.0.1:5432/gym_tracker_test
+      GYM_TRACKER_TEST_DATABASE_URL: postgresql+psycopg://gym_tracker:gym_tracker@127.0.0.1:5432/gym_tracker_test
+      OPENAI_API_KEY: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/gym-tracker/uv.lock
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: apps/gym-tracker/.python-version
+      - run: uv sync --locked --all-groups
+      - run: uv run alembic upgrade head
+      - run: uv run alembic check
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run pytest
