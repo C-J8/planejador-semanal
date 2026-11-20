@@ -25,6 +25,12 @@ publicada no `planejador-semanal`. A publicação precisa incluir as alteraçõe
 locais importantes do Gym Tracker, como as migrations 0003/0004 e os últimos
 treinos, preservando o histórico dos dois projetos.
 
+A união foi concluída na `main` do
+[`planejador-semanal`](https://github.com/C-J8/planejador-semanal), preservando
+os dois históricos. O [CI da consolidação](https://github.com/C-J8/planejador-semanal/actions/runs/44659568393)
+passou nas duas aplicações. As pastas locais de uso continuam separadas;
+adotar o checkout unificado é uma etapa operacional posterior.
+
 ## Prioridades antes das telas novas
 
 ### 1. Sessões de treino independentes do importador
@@ -166,7 +172,7 @@ implementadas e testadas em qualquer opção.
 
 ## Ordem de entrega e validação
 
-1. Concluir a união dos repositórios e registrar as melhorias locais.
+1. **Concluído:** união dos repositórios e registro das melhorias locais.
 2. Corrigir o parser e preservar identidade nas consultas.
 3. Separar o serviço de treinos da importação e migrar sem perder o histórico.
 4. Criar login, propriedade dos dados e API; testar acesso entre duas pessoas.
@@ -178,9 +184,10 @@ sem modificar sessões antigas; cancelamento sem pontuar; duas sessões no mesmo
 dia; fuso do desafio; entrada em grupo sem expor treinos privados; reimportação
 sem perder correções nem publicar dados pessoais do WhatsApp.
 
-Nesta revisão, os 54 testes existentes de parser, últimos treinos e peso
-corporal passaram. As reproduções acima expuseram lacunas que não são
-cobertas por esses testes. Não foram executados testes PostgreSQL nesta revisão.
+Na verificação local desta revisão, os 54 testes existentes de parser, últimos
+treinos e peso corporal passaram. As reproduções acima expuseram lacunas que
+não são cobertas por esses testes. Na publicação da consolidação, o CI passou
+com os 195 testes da Academia, incluindo PostgreSQL, e as suítes do Planner.
 
 ## Referências de produto e implementação
 
