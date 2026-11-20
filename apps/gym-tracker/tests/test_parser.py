@@ -21,7 +21,7 @@ from gym_tracker.services.parser import (
         ("Extensora 50kg - 8rep/2x", [(50, 8), (50, 8)]),
         ("Puxada 20kg/10rep ... 30kg/8rep", [(20, 10), (30, 8)]),
         ("Rosca 12,5kg/10rep", [(12.5, 10)]),
-        ("Flexora 30kg - 12rep/2", [(30, 12), (30, 12)]),
+        ("Flexora 30kg - 12rep/2x", [(30, 12), (30, 12)]),
     ],
 )
 def test_parse_supported_set_formats(line: str, expected: list[tuple[float, int]]) -> None:
@@ -211,3 +211,112 @@ def test_mixed_date_orders_are_rejected_instead_of_changing_workout_dates() -> N
     text = "[24/07/2026, 13:45] Pessoa: Extensora 40kg/10rep\n[8/13/26, 6:16 PM] Pessoa: Flexora 30kg/8rep"
     with pytest.raises(ValueError, match="mistura datas"):
         split_whatsapp_messages(text)
+
+
+@pytest.mark.parametrize("marker", ["nfiz", "n fiz", "não fiz", "naofiz", "N FIZ"])
+def test_not_performed_markers_never_produce_sets(marker: str) -> None:
+    line = f"Triceps corda cima({marker}) 9.1kg/10rep .. 11.3kg/10rep"
+    assert parse_set_line(line) == ("", [], [])
+    message = split_whatsapp_messages(f"01/01/2026 10:00 - Pessoa: {line}\nExtensora 40kg/10rep")[0]
+    outcome = parse_workout_message(message)
+    assert not outcome.needs_review
+    assert [exercise.canonical_name for exercise in outcome.extraction.exercises] == ["Extensora"]
+
+
+def test_performed_exercise_with_an_observation_is_preserved() -> None:
+    _, sets, reasons = parse_set_line("Triceps corda 9.1kg/10rep (fiz com calma)")
+    assert [item.reps for item in sets] == [10]
+    assert reasons == []
+
+
+@pytest.mark.parametrize("notation", ["4rep/4", "12rep/2", "10rep/3", "8rep/1"])
+def test_bare_small_count_after_reps_is_reviewed_instead_of_multiplied(notation: str) -> None:
+    _, sets, reasons = parse_set_line(f"Extensora 40kg/{notation}")
+    assert sets == []
+    assert "abreviacao de repeticoes ambigua" in reasons
+
+
+@pytest.mark.parametrize("notation", ["4rep/4x", "12rep/2x", "10rep 3x", "10rep...2x"])
+def test_explicit_set_multiplier_still_works(notation: str) -> None:
+    _, sets, reasons = parse_set_line(f"Extensora 40kg/{notation}")
+    count = int(notation[-2])
+    expected_reps = int(notation.split("rep")[0])
+    assert [item.reps for item in sets] == [expected_reps] * count
+    assert reasons == []
+
+
+@pytest.mark.parametrize("notation", ["4rep/4rep", "10rep/5rep", "10/10/10"])
+def test_explicit_repetition_lists_are_not_treated_as_set_multipliers(notation: str) -> None:
+    _, sets, reasons = parse_set_line(f"Extensora 40kg/{notation}")
+    assert [item.reps for item in sets] == [int(value.replace("rep", "")) for value in notation.split("/")]
+    assert reasons == []
+
+
+@pytest.mark.parametrize("invalid", ["0", "999", "-2", "8.5"])
+@pytest.mark.parametrize("load", ["40kg", "40"])
+def test_invalid_repetitions_are_reported_even_next_to_valid_sets(invalid: str, load: str) -> None:
+    _, sets, reasons = parse_set_line(f"Extensora {load}/10rep/{invalid}rep")
+    assert [item.reps for item in sets] == [10]
+    assert any("repeticoes ausentes ou invalidas" in reason for reason in reasons)
+    if load == "40":
+        assert "carga sem unidade" in reasons
+    message = split_whatsapp_messages(f"01/01/2026 10:00 - Pessoa: Extensora {load}/10rep/{invalid}rep")[0]
+    outcome = parse_workout_message(message)
+    assert outcome.needs_review
+    assert "reps" in outcome.extraction.exercises[0].uncertain_fields
+
+
+@pytest.mark.parametrize("notation", ["10rep/rep", "10rep/0x", "10rep/999999x", "10rep/2x/3x"])
+def test_incomplete_or_invalid_repetition_notation_never_passes_without_review(notation: str) -> None:
+    _, _, reasons = parse_set_line(f"Extensora 40kg/{notation}")
+    assert reasons
+
+
+@pytest.mark.parametrize("notation", ["-2rep", "/-2rep", " -2rep"])
+def test_negative_first_repetition_is_not_changed_to_a_positive_value(notation: str) -> None:
+    _, sets, reasons = parse_set_line(f"Extensora 40kg{notation}")
+    assert sets == []
+    assert any("repeticoes ausentes ou invalidas" in reason for reason in reasons)
+
+
+def test_unknown_exercise_keeps_invalid_repetition_evidence() -> None:
+    message = split_whatsapp_messages("01/01/2026 10:00 - Pessoa: Movimento novo 40kg/10rep/999rep")[0]
+    outcome = parse_workout_message(message)
+    assert any("repeticoes ausentes ou invalidas" in reason for reason in outcome.reasons)
+    assert "reps" in outcome.extraction.exercises[0].uncertain_fields
+
+
+@pytest.mark.parametrize("load", ["15..8kg", "15,,8kg", "15.8.2kg"])
+def test_malformed_decimal_load_is_not_truncated_to_a_smaller_weight(load: str) -> None:
+    _, sets, reasons = parse_set_line(f"Triceps cabo {load}/10rep")
+    assert sets == []
+    assert any("carga invalida" in reason for reason in reasons)
+
+
+@pytest.mark.parametrize("line", ["Extensora 40kg/10/10...30kg/8rep", "Extensora 40kg/10rep..30kg/8rep"])
+def test_ellipsis_between_loads_is_not_a_malformed_decimal(line: str) -> None:
+    _, sets, reasons = parse_set_line(line)
+    assert [(float(item.weight_kg), item.reps) for item in sets][-1] == (30, 8)
+    assert reasons == []
+
+
+@pytest.mark.parametrize("name", ["Supino inclinado máquina com anilha", "Supino inclinado maq com anilhas"])
+def test_plate_loaded_machine_is_preserved(name: str) -> None:
+    assert explicit_equipment(name) == "Máquina com anilha"
+    outcome = parse_workout_message(split_whatsapp_messages(f"01/01/2026 10:00 - Pessoa: {name} 40kg/10rep")[0])
+    assert not outcome.needs_review
+    assert outcome.extraction.exercises[0].equipment == "Máquina com anilha"
+    assert outcome.extraction.exercises[0].load_basis == "total"
+
+
+def test_plate_loaded_machine_context_and_explicit_line_precedence() -> None:
+    message = split_whatsapp_messages(
+        "01/01/2026 10:00 - Pessoa: Máquina com anilha\nSupino inclinado 40kg/10rep\nSupino reto halter 20kg/10rep"
+    )[0]
+    outcome = parse_workout_message(message)
+    assert not outcome.needs_review
+    assert [(exercise.equipment, exercise.load_basis) for exercise in outcome.extraction.exercises] == [
+        ("Máquina com anilha", "total"),
+        ("Halter", "por_halter"),
+    ]
+    assert explicit_equipment("Supino inclinado máquina com anilha", "Halter") == "Máquina com anilha"

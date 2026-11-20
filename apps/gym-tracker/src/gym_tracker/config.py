@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-5.4-mini"
     llm_shadow_mode: bool = True
     llm_auto_accept: bool = False
-    parser_version: str = "3.0.1"
+    parser_version: str = "3.0.2"
     gym_tracker_user_id: UUID | None = None
     gym_import_file: Path = Path("whatsapp_acad_export/Conversa do WhatsApp com Acad.txt")
     gym_import_interval_seconds: int = Field(default=60, ge=10, le=86400)

@@ -2,8 +2,9 @@
 
 Revisão em 19/11/2026. Objetivo confirmado: uso pessoal e em um grupo de
 amigos, combinando registro detalhado de treinos com desafios de constância.
-Este documento registra a revisão e a ordem proposta; as mudanças descritas
-ainda não estão implementadas.
+Este documento registra a revisão e a ordem proposta. A união dos repositórios
+e as correções do parser indicadas abaixo estão concluídas; as demais mudanças
+ainda precisam ser implementadas.
 
 ## Situação atual
 
@@ -83,11 +84,11 @@ explicitamente dias ativos de sessões realizadas. Comparações de carga
 precisam manter exercício, equipamento, base da carga e aparelho/local
 compatíveis. A numeração da série pertence ao exercício dentro da sessão.
 
-### 4. Corrigir as ambiguidades do parser
+### 4. Ambiguidades do parser — corrigidas na versão 3.0.2
 
-Reproduções executadas com o código atual, sem alterar dados:
+Reproduções que motivaram as correções, sem alterar dados pessoais:
 
-| Entrada                                                | Comportamento atual                       | Tratamento necessário                                                       |
+| Entrada                                                | Antes da correção                         | Tratamento implementado                                                     |
 | ------------------------------------------------------ | ----------------------------------------- | --------------------------------------------------------------------------- |
 | `Triceps corda cima(nfiz) 9.1kg/10rep .. 11.3kg/10rep` | Extrai duas séries sem aviso              | Reconhecer exercício não realizado antes de remover comentários             |
 | `Supino reto 40kg/4rep/4`                              | Extrai quatro séries de quatro repetições | Encaminhar abreviação ambígua para revisão; não multiplicar silenciosamente |
@@ -95,10 +96,13 @@ Reproduções executadas com o código atual, sem alterar dados:
 | `Supino reto 40kg/10rep/999rep`                        | Mantém só a série de dez, sem aviso       | Registrar o trecho inválido para revisão                                    |
 | `Supino inclinado maquina com anilha`                  | Detecta equipamento genérico `Máquina`    | Preservar a variante explícita com anilha                                   |
 
-As correções precisam de testes específicos e versão nova do parser. Não
-reprocessar o histórico inteiro automaticamente sem conferir as decisões
-humanas já aceitas. O WhatsApp passa a ser uma entrada de histórico, sem ser
-necessário para registrar treinos novos no app.
+As correções receberam testes específicos de parsing e importação, incluindo
+bloqueio da autoaceitação por IA e preservação de uma correção humana aceita
+quando a nova análise exige revisão. A versão é `3.0.2`. A instalação anterior
+não foi reconfigurada nem teve seu histórico reprocessado. Veja o
+[guia operacional](../apps/gym-tracker/docs/operations.md) antes de adotar a
+versão em um banco existente. Desacoplar o registro de treinos do WhatsApp
+continua sendo uma etapa posterior.
 
 ### 5. Separar apresentação, regras e operação local
 
@@ -173,7 +177,7 @@ implementadas e testadas em qualquer opção.
 ## Ordem de entrega e validação
 
 1. **Concluído:** união dos repositórios e registro das melhorias locais.
-2. Corrigir o parser e preservar identidade nas consultas.
+2. **Parser corrigido na 3.0.2.** Preservar identidade nas consultas ainda está pendente.
 3. Separar o serviço de treinos da importação e migrar sem perder o histórico.
 4. Criar login, propriedade dos dados e API; testar acesso entre duas pessoas.
 5. Entregar fichas, registro ao vivo, salvamento local e sincronização.

@@ -27,6 +27,7 @@ class ReviewReasonCode(enum.StrEnum):
     MISSING_LOAD_UNIT = "carga sem unidade"
     MISSING_REPETITIONS = "repeticoes ausentes"
     MISSING_OR_INVALID_REPETITIONS = "repeticoes ausentes ou invalidas"
+    AMBIGUOUS_REPETITIONS = "abreviacao de repeticoes ambigua"
     NO_EXERCISES = "proposta sem exercicios"
     EXERCISE_WITHOUT_SETS = "exercicio sem series"
     NO_MATERIALIZABLE_SETS = "proposta sem series materializaveis"
@@ -61,6 +62,7 @@ REASON_KINDS = {
     ReviewReasonCode.MISSING_LOAD_UNIT: ReviewReasonKind.MANDATORY_MISSING,
     ReviewReasonCode.MISSING_REPETITIONS: ReviewReasonKind.MANDATORY_MISSING,
     ReviewReasonCode.MISSING_OR_INVALID_REPETITIONS: ReviewReasonKind.MANDATORY_MISSING,
+    ReviewReasonCode.AMBIGUOUS_REPETITIONS: ReviewReasonKind.AMBIGUOUS_OR_SUSPICIOUS,
     ReviewReasonCode.NO_EXERCISES: ReviewReasonKind.MANDATORY_MISSING,
     ReviewReasonCode.EXERCISE_WITHOUT_SETS: ReviewReasonKind.MANDATORY_MISSING,
     ReviewReasonCode.NO_MATERIALIZABLE_SETS: ReviewReasonKind.MANDATORY_MISSING,

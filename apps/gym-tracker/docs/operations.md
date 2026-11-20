@@ -9,7 +9,7 @@
 - `OPENAI_MODEL`: modelo auditado no parse run.
 - `LLM_SHADOW_MODE`: `true` por padrão.
 - `LLM_AUTO_ACCEPT`: `false` por padrão.
-- `PARSER_VERSION`: versão lógica do parser, atualmente `3.0.1`.
+- `PARSER_VERSION`: versão lógica do parser, atualmente `3.0.2`.
 
 ## Importação e reprocessamento
 
@@ -40,6 +40,37 @@ usam mês/dia; o formato de 24 horas mantém dia/mês. Um arquivo que mistura as
 duas ordens é recusado. AM/PM aceita também o espaço estreito usado pelo iPhone.
 
 Mensagens multilinha e múltiplos exercícios são preservados. Só são juntadas linhas iniciadas por reticências ou continuações compostas claramente apenas por repetições. Texto livre separado vai para revisão. Marcadores de edição, exclusão e mídia ficam na origem.
+
+## Séries, observações e equipamentos na versão 3.0.2
+
+- `nfiz`, `n fiz`, `não fiz` e `naofiz` identificam exercícios não realizados,
+  inclusive dentro de parênteses. Eles não geram séries; os demais exercícios
+  da mensagem são preservados.
+- Multiplicadores exigem o `x`: `40kg/10rep/3x` representa três séries de dez.
+  A forma `40kg/10rep/3` é ambígua e vai para revisão, sem multiplicar nem
+  assumir duas séries. Para duas séries com quatro repetições, escreva
+  `40kg/4rep/4rep`.
+- Repetições zero, negativas, fracionárias, acima de 200 ou incompletas geram
+  revisão. Valores válidos vizinhos permanecem na proposta, e a mensagem
+  inteira aguarda a decisão humana. Nenhuma série parcial é ativada.
+- Multiplicadores fora de 1 a 200 ou múltiplos multiplicadores também exigem
+  revisão, evitando expansão ilimitada de uma anotação inválida.
+- `Máquina com anilha` e `maq com anilhas` preservam o equipamento específico.
+  O equipamento escrito no exercício tem precedência sobre o título do bloco.
+- Cargas malformadas como `15..8kg` exigem revisão, sem interpretar apenas
+  `8kg` nem inventar a posição da casa decimal.
+
+Esses motivos de revisão bloqueiam a autoaceitação por IA, mesmo quando ela
+propõe valores plausíveis. Resolver um alias não remove a evidência de uma
+repetição inválida.
+
+Publicar a nova versão não atualiza o `.env` da instalação anterior. Não mude
+`PARSER_VERSION` no importador ativo apenas para testar: a mudança solicita uma
+nova análise do TXT. Antes de adotar a versão, faça backup e compare os
+resultados em uma cópia do banco, preservando as correções humanas. Resultados
+que exigem revisão mantêm a versão aceita anterior ativa. A ativação no banco
+pessoal e o reprocessamento do histórico são operações separadas da correção
+do código.
 
 ## Revisões
 

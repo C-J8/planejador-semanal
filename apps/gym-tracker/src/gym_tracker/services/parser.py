@@ -28,9 +28,26 @@ NAMELESS_LOAD_PATTERN = re.compile(
     r"^(?P<name>[^\d]{2,}?)\s+(?P<load>\d+(?:[.,]\d+)?)\s*[/|-]\s*(?P<rest>.*(?:rep|\d\s*x).*)$",
     re.IGNORECASE,
 )
-WORKOUT_TITLES = {"acad nova", "upper", "lower a", "lower b", "abd", "halter", "maquina", "cabo"}
+WORKOUT_TITLES = {
+    "acad nova",
+    "upper",
+    "lower a",
+    "lower b",
+    "abd",
+    "halter",
+    "maquina",
+    "cabo",
+    "maquina com anilha",
+    "maquina com anilhas",
+}
 EDIT_MARKERS = ("<mensagem editada>", "(editada)")
 MEDIA_MARKERS = ("<midia oculta>", "<media omitted>")
+NOT_PERFORMED_PATTERN = re.compile(r"(?<!\w)(?:n\s*fiz|nao\s*fiz)(?!\w)")
+REPETITIONS_PATTERN = re.compile(r"(?<![\w.,])(?P<value>-?\d+(?:[.,]\d+)?)\s*(?:rep)?(?=\s*(?:[/.-]|$))")
+SET_MULTIPLIER_PATTERN = re.compile(r"(?:/|\s|\.{2,})(?P<count>-?\d+)\s*x\b")
+MALFORMED_LOAD_PATTERN = re.compile(
+    r"(?<!\w)-?\d+(?:\.\.(?!\.)\d+|,{2,}\d+|[.,]\d+[.,]\d+)\s*(?:kg|g)\b", re.IGNORECASE
+)
 
 
 def content_hash(sent_at: datetime, sender: str, content: str) -> str:
@@ -136,28 +153,49 @@ def _is_clear_continuation(line: str) -> bool:
     return bool(LOAD_PATTERN.search(line) or re.fullmatch(r"[. /-]*(?:\d+\s*(?:rep)?[ /.-]*)+", normalized))
 
 
-def _expand_repetitions(segment: str) -> list[int]:
-    normalized = normalize_text(segment).replace(",", ".")
+def _expand_repetitions(segment: str) -> tuple[list[int], list[str]]:
+    normalized = segment.casefold().strip()
     normalized = re.sub(r"(\d+)\s*ep\b", r"\1rep", normalized)
-    multiplier_match = re.search(r"(?:/|\s)(\d+)\s*x\b", normalized)
-    shorthand_match = re.search(r"(\d+)\s*rep?\s*/\s*(\d+)\s*$", normalized)
-    if shorthand_match and int(shorthand_match.group(2)) <= 5:
-        return [int(shorthand_match.group(1))] * int(shorthand_match.group(2))
+    multipliers = list(SET_MULTIPLIER_PATTERN.finditer(normalized))
+    cleaned = SET_MULTIPLIER_PATTERN.sub("", normalized)
+    reps: list[int] = []
+    reasons: list[str] = []
+    for match in REPETITIONS_PATTERN.finditer(cleaned):
+        value = Decimal(match.group("value").replace(",", "."))
+        if value != value.to_integral_value() or not 1 <= value <= 200:
+            reasons.append(f"repeticoes ausentes ou invalidas: {match.group('value')}")
+        else:
+            reps.append(int(value))
+    remainder = REPETITIONS_PATTERN.sub("", cleaned)
+    if re.search(r"[^\s/.-]", remainder):
+        reasons.append("repeticoes ausentes ou invalidas: trecho nao reconhecido")
 
-    cleaned = re.sub(r"(?:/|\s)\d+\s*x\b", "", normalized)
-    reps = [int(value) for value in re.findall(r"(\d+)\s*(?:rep)?(?=\s*(?:[/.-]|$))", cleaned)]
-    reps = [value for value in reps if 1 <= value <= 200]
-    if multiplier_match and len(reps) == 1:
-        reps *= int(multiplier_match.group(1))
-    return reps
+    shorthand = re.fullmatch(r"[\s/.-]*(\d+)\s*rep\s*/\s*(\d+)[\s.]*", normalized)
+    if shorthand and 1 <= int(shorthand.group(2)) <= 5:
+        # This could mean separate sets or a repetition multiplier. Keep the
+        # original line for review instead of proposing either interpretation.
+        return [], [*reasons, "abreviacao de repeticoes ambigua"]
+    if multipliers:
+        if len(multipliers) != 1 or len(reps) != 1:
+            reasons.append("abreviacao de repeticoes ambigua")
+        else:
+            count = int(multipliers[0].group("count"))
+            if not 1 <= count <= 200:
+                reasons.append("repeticoes ausentes ou invalidas: multiplicador fora do limite")
+            elif not reasons:
+                reps *= count
+    return reps, list(dict.fromkeys(reasons))
 
 
 def parse_set_line(line: str) -> tuple[str, list[SetPayload], list[str]]:
     normalized = normalize_text(line)
-    if "n fiz" in normalized or "nao fiz" in normalized:
+    if NOT_PERFORMED_PATTERN.search(normalized):
         return "", [], []
 
     cleaned = re.sub(r"\([^)]*\)", "", line)
+    malformed_load = MALFORMED_LOAD_PATTERN.search(cleaned)
+    if malformed_load:
+        return cleaned[: malformed_load.start()].strip(" -:"), [], ["carga invalida: notacao numerica ambigua"]
     load_matches = list(LOAD_PATTERN.finditer(cleaned))
     reasons: list[str] = []
 
@@ -167,6 +205,7 @@ def parse_set_line(line: str) -> tuple[str, list[SetPayload], list[str]]:
         if without_unit is None:
             return "", [], ["linha de treino nao reconhecida"]
         raw_name = without_unit.group("name").strip(" -:")
+        reasons.append("carga sem unidade")
         parsed_without_unit: list[SetPayload] = []
         continuation_pattern = re.compile(
             r"^(?P<load>\d+(?:[.,]\d+)?)\s*[/|-]\s*(?P<rest>.*)$",
@@ -177,11 +216,13 @@ def parse_set_line(line: str) -> tuple[str, list[SetPayload], list[str]]:
             if match is None:
                 return raw_name, [], ["linha sem unidade nao reconhecida"]
             load = Decimal(match.group("load").replace(",", "."))
-            reps = _expand_repetitions(match.group("rest"))
+            reps, rep_reasons = _expand_repetitions(match.group("rest"))
+            reasons.extend(rep_reasons)
             if not reps:
-                return raw_name, [], ["repeticoes ausentes ou invalidas"]
+                if not rep_reasons:
+                    reasons.append("repeticoes ausentes ou invalidas")
+                return raw_name, [], reasons
             parsed_without_unit.extend(SetPayload(weight_kg=load, reps=rep) for rep in reps)
-        reasons.append("carga sem unidade")
         return raw_name, parsed_without_unit, reasons
 
     raw_name = cleaned[: load_matches[0].start()].replace("-", " ").strip(" -:")
@@ -198,7 +239,8 @@ def parse_set_line(line: str) -> tuple[str, list[SetPayload], list[str]]:
         if parsed_load.weight_kg is None or parsed_load.weight_kg < 0:
             continue
         load = parsed_load.weight_kg
-        reps = _expand_repetitions(segment)
+        reps, rep_reasons = _expand_repetitions(segment)
+        reasons.extend(rep_reasons)
         if not reps:
             reasons.append(f"repeticoes ausentes para {load:g} kg")
             continue
@@ -226,6 +268,12 @@ def parse_workout_message(message: WhatsAppMessage) -> ParseOutcome:
             reasons.extend(f"{reason}: {line}" for reason in line_reasons)
             continue
 
+        reasons.extend(f"{reason}: {line}" for reason in line_reasons)
+        uncertain_fields = []
+        if any("repeticoes" in reason for reason in line_reasons):
+            uncertain_fields.append("reps")
+        if any("carga" in reason or "unidade" in reason for reason in line_reasons):
+            uncertain_fields.append("weight_kg")
         match = resolve_static_exercise(raw_name, workout_type)
         if match is None:
             reasons.append(f"exercicio desconhecido: {raw_name}")
@@ -233,17 +281,16 @@ def parse_workout_message(message: WhatsAppMessage) -> ParseOutcome:
                 ExercisePayload(
                     raw_name=raw_name,
                     sets=sets,
-                    uncertain_fields=["canonical_name", "muscle_group", "equipment"],
+                    uncertain_fields=[*uncertain_fields, "canonical_name", "muscle_group", "equipment"],
                     needs_review=True,
                 )
             )
             consumed.append(line)
             continue
 
-        uncertain_fields = ["weight_kg"] if line_reasons else []
         if match.equipment is None:
             uncertain_fields.append("equipment")
-            line_reasons.append(f"equipamento nao determinado: {raw_name}")
+            reasons.append(f"equipamento nao determinado: {raw_name}: {line}")
         exercises.append(
             ExercisePayload(
                 raw_name=raw_name,
@@ -253,10 +300,9 @@ def parse_workout_message(message: WhatsAppMessage) -> ParseOutcome:
                 load_basis=match.load_basis,
                 sets=sets,
                 uncertain_fields=uncertain_fields,
-                needs_review=bool(line_reasons),
+                needs_review=bool(uncertain_fields or line_reasons),
             )
         )
-        reasons.extend(f"{reason}: {line}" for reason in line_reasons)
         consumed.append(line)
 
     if not exercises and not reasons:

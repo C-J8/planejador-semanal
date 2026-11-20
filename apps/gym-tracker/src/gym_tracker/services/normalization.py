@@ -112,13 +112,16 @@ CATALOG_RULES: tuple[tuple[tuple[str, ...], ExerciseMatch], ...] = (
 
 
 def explicit_equipment(raw_name: str, context: str | None = None) -> str | None:
-    key = normalize_text(f"{context or ''} {raw_name}")
-    if re.search(r"\bhalter(?:es)?\b", key):
-        return "Halter"
-    if re.search(r"\b(?:corda|cabo)\b", key):
-        return "Cabo"
-    if re.search(r"\b(?:maquina|maq)\b", key):
-        return "Máquina"
+    for value in (raw_name, context or ""):
+        key = normalize_text(value)
+        if re.search(r"\bhalter(?:es)?\b", key):
+            return "Halter"
+        if re.search(r"\b(?:corda|cabo)\b", key):
+            return "Cabo"
+        if re.search(r"\b(?:maquina|maq)\s+com\s+anilhas?\b", key):
+            return "Máquina com anilha"
+        if re.search(r"\b(?:maquina|maq)\b", key):
+            return "Máquina"
     return None
 
 
