@@ -157,26 +157,20 @@ def theme_figure(fig):
 
 def top_set_progress(data: pd.DataFrame) -> pd.DataFrame:
     return (
-        data.sort_values(["data", "peso_kg", "repeticoes"], ascending=[True, False, False])
-        .groupby("data", as_index=False)
-        .first()
-        .sort_values("data")
+        data.sort_values(["peso_kg", "repeticoes"], ascending=[False, False], kind="stable")
+        .drop_duplicates("treino_id")
+        .sort_values("treino_ordem")
     )
 
 
 def exercise_day_progress(data: pd.DataFrame) -> pd.DataFrame:
-    top_sets = top_set_progress(data)[["data", "peso_kg", "repeticoes"]]
+    keys = ["data", "treino_id", "treino_label", "treino_ordem"]
+    top_sets = top_set_progress(data)[[*keys, "peso_kg", "repeticoes"]]
     top_sets = top_sets.rename(columns={"repeticoes": "repeticoes_melhor_serie"})
-    daily_totals = data.groupby("data", as_index=False).agg(
-        series=("serie", "count"),
-        repeticoes_totais=("repeticoes", "sum"),
-        volume=("volume", "sum"),
+    totals = data.groupby(keys, as_index=False).agg(
+        series=("serie", "count"), repeticoes_totais=("repeticoes", "sum"), volume=("volume", "sum")
     )
-    progress = top_sets.merge(daily_totals, on="data", how="left")
-    progress["repeticoes_melhor_serie"] = progress["repeticoes_melhor_serie"].astype(int)
-    progress["repeticoes_totais"] = progress["repeticoes_totais"].astype(int)
-    progress["series"] = progress["series"].astype(int)
-    return progress.sort_values("data")
+    return top_sets.merge(totals, on=keys, validate="one_to_one").sort_values("treino_ordem")
 
 
 def feature_display(value: float, decimals: int) -> str:
@@ -205,6 +199,7 @@ def build_feature_chart_data(progress: pd.DataFrame, selected_features: list[str
             rows.append(
                 {
                     "data": progress.loc[index, "data"],
+                    "treino_label": progress.loc[index, "treino_label"],
                     "feature": feature,
                     "metrica": config["label"],
                     "valor": raw_value,
@@ -291,6 +286,7 @@ best_load = filtered["peso_kg"].max()
 kpi_cols = st.columns(4)
 with kpi_cols[0]:
     metric_card("Dias registrados", str(days_count))
+    st.caption(f"{filtered['treino_id'].nunique()} sessões de treino")
 with kpi_cols[1]:
     metric_card("Séries", str(series_count))
 with kpi_cols[2]:
@@ -328,7 +324,7 @@ with tab_overview:
             },
         )
         theme_figure(fig)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     group_summary = (
         filtered.groupby("grupo_muscular", as_index=False)
@@ -356,7 +352,7 @@ with tab_overview:
         )
         theme_figure(fig)
         fig.update_layout(showlegend=False, yaxis={"categoryorder": "total ascending"})
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     st.subheader("Resumo por grupo")
     st.dataframe(
@@ -370,7 +366,7 @@ with tab_overview:
                 "volume": "Volume",
             }
         ),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -443,7 +439,7 @@ with tab_groups:
                 color_map = {config["label"]: config["color"] for config in GROUP_CHART_FEATURES.values()}
                 fig = px.line(
                     chart_data,
-                    x="data",
+                    x="treino_label",
                     y="valor_plot",
                     color="metrica",
                     markers=True,
@@ -458,9 +454,7 @@ with tab_groups:
                 fig.update_traces(
                     line={"width": 3},
                     marker={"size": 9},
-                    hovertemplate=(
-                        "<b>%{customdata[0]}</b><br>Data: %{x|%d/%m/%Y}<br>Valor: %{customdata[1]}<extra></extra>"
-                    ),
+                    hovertemplate=("<b>%{customdata[0]}</b><br>Treino: %{x}<br>Valor: %{customdata[1]}<extra></extra>"),
                 )
                 theme_figure(fig)
                 fig.update_layout(
@@ -471,7 +465,7 @@ with tab_groups:
                     GROUP_CHART_FEATURES[feature]["decimals"] == 0 for feature in selected_features
                 ):
                     fig.update_yaxes(tickformat="d")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
             with st.expander("Como ler este gráfico"):
                 st.write(
@@ -481,7 +475,7 @@ with tab_groups:
                 )
 
             exercise_summary = (
-                group_view.groupby(["exercicio", "tipo"], as_index=False)
+                group_view.groupby(["variante_id", "exercicio", "tipo", "base_carga", "local"], as_index=False)
                 .agg(
                     volume=("volume", "sum"),
                     series=("serie", "count"),
@@ -503,7 +497,7 @@ with tab_groups:
                         "volume": "Volume",
                     }
                 ),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
@@ -515,7 +509,7 @@ with tab_records:
 
     records = (
         filtered.sort_values(["peso_kg", "repeticoes"], ascending=False)
-        .groupby(["exercicio", "tipo"], as_index=False)
+        .groupby(["variante_id", "exercicio", "tipo", "base_carga", "local"], as_index=False)
         .first()
         .sort_values(["grupo_muscular", "exercicio", "tipo"])
     )
@@ -541,13 +535,13 @@ with tab_records:
             "volume": "Volume da série",
         }
     )
-    st.dataframe(records_table, use_container_width=True, hide_index=True)
+    st.dataframe(records_table, width="stretch", hide_index=True)
 
 with tab_data:
     st.subheader("Dados filtrados")
     st.dataframe(
         filtered.sort_values(["data", "grupo_muscular", "exercicio", "serie"]),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 

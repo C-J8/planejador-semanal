@@ -22,19 +22,16 @@ from gym_tracker.models import (
     ParseStatus,
     RawMessage,
     User,
-    Workout,
-    WorkoutSet,
 )
 from gym_tracker.repositories.catalog import (
     find_alias,
     find_confirmed_variant,
-    get_or_create_exercise,
-    get_or_create_variant,
 )
 from gym_tracker.repositories.state import bump_data_revision
 from gym_tracker.schemas import ParseOutcome, QualityReport, WhatsAppMessage, WorkoutExtraction
+from gym_tracker.services.imported_workouts import activate_result as _activate_result
+from gym_tracker.services.imported_workouts import materialize_extraction as _materialize_extraction
 from gym_tracker.services.llm_extractor import OpenAIWorkoutExtractor, WorkoutExtractor
-from gym_tracker.services.loads import validate_materializable_load
 from gym_tracker.services.normalization import (
     explicit_equipment,
     normalize_message_content,
@@ -43,7 +40,6 @@ from gym_tracker.services.normalization import (
 from gym_tracker.services.parser import normalized_set_signatures, parse_workout_message, split_whatsapp_messages
 from gym_tracker.services.validation import (
     count_reasons,
-    extraction_materialization_reasons,
     llm_auto_accept_blockers,
     llm_source_evidence_reasons,
     review_reasons,
@@ -207,92 +203,6 @@ def _accepted_payload(extraction: WorkoutExtraction, evidence: list[dict[str, st
     return payload
 
 
-def _materialize_extraction(
-    session: Session,
-    user_id: uuid.UUID,
-    raw_message: RawMessage,
-    parse_result: ParseResult,
-    extraction: WorkoutExtraction,
-    parser_version: str,
-    parse_method: str = ParseMethod.RULE.value,
-    llm_model: str | None = None,
-) -> int:
-    invariant_reasons = extraction_materialization_reasons(extraction)
-    if invariant_reasons:
-        raise ValueError(f"extracao nao materializavel: {'; '.join(invariant_reasons)}")
-    for exercise_payload in extraction.exercises:
-        if not exercise_payload.canonical_name or not exercise_payload.muscle_group or not exercise_payload.equipment:
-            raise ValueError(f"extracao incompleta para {exercise_payload.raw_name}")
-
-    workout = Workout(
-        user_id=user_id,
-        workout_date=extraction.workout_date,
-        workout_type=extraction.workout_type,
-        notes=extraction.notes,
-        source="whatsapp",
-    )
-    session.add(workout)
-    session.flush()
-    created = 0
-    variant_set_counters: dict[uuid.UUID, int] = defaultdict(int)
-    for exercise_payload in extraction.exercises:
-        exercise = get_or_create_exercise(session, exercise_payload.canonical_name, exercise_payload.muscle_group)
-        variant = get_or_create_variant(
-            session,
-            exercise,
-            exercise_payload.equipment,
-            exercise_payload.load_basis,
-        )
-        for item in exercise_payload.sets:
-            validate_materializable_load(
-                item.weight_kg, equipment=exercise_payload.equipment, load_basis=exercise_payload.load_basis
-            )
-            variant_set_counters[variant.id] += 1
-            session.add(
-                WorkoutSet(
-                    workout=workout,
-                    exercise_variant=variant,
-                    raw_message=raw_message,
-                    parse_result=parse_result,
-                    set_number=variant_set_counters[variant.id],
-                    weight_kg=item.weight_kg,
-                    reps=item.reps,
-                    rpe=item.rpe,
-                    rir=item.rir,
-                    parse_method=parse_method,
-                    parser_version=parser_version,
-                    llm_model=llm_model,
-                )
-            )
-            created += 1
-    if created == 0:
-        session.delete(workout)
-        session.flush()
-        raise ValueError("extracao materializada sem series")
-    session.flush()
-    return created
-
-
-def _activate_result(session: Session, result: ParseResult) -> None:
-    previous = session.scalar(
-        select(ParseResult)
-        .where(
-            ParseResult.raw_message_id == result.raw_message_id,
-            ParseResult.is_active.is_(True),
-            ParseResult.id != result.id,
-        )
-        .with_for_update()
-    )
-    if previous is not None:
-        previous.is_active = False
-        session.flush([previous])
-    result.status = ParseResultStatus.ACCEPTED.value
-    result.is_active = True
-    result.activated_at = datetime.now(UTC)
-    result.raw_message.parse_status = ParseStatus.ACCEPTED.value
-    session.flush()
-
-
 def _existing_result_for_version(
     session: Session,
     raw_message_id: uuid.UUID,
@@ -307,6 +217,27 @@ def _existing_result_for_version(
         )
         .order_by(ParseResult.created_at)
     )
+
+
+def _preserved_result(session: Session, raw_message_id: uuid.UUID, reprocess_existing: bool) -> ParseResult | None:
+    active = session.scalar(
+        select(ParseResult).where(ParseResult.raw_message_id == raw_message_id, ParseResult.is_active.is_(True))
+    )
+    if active is not None and (active.parse_method == ParseMethod.MANUAL.value or not reprocess_existing):
+        return active
+    # Rejected duplicates must not reappear after an automatic parser upgrade.
+    last_review = session.scalar(
+        select(ParseReview)
+        .where(
+            ParseReview.raw_message_id == raw_message_id,
+            ParseReview.status.in_(["accepted", "rejected"]),
+        )
+        .order_by(ParseReview.reviewed_at.desc())
+        .limit(1)
+    )
+    if last_review is not None and last_review.status == "rejected":
+        return last_review.parse_result
+    return None
 
 
 def _has_content_conflict(session: Session, message: RawMessage) -> bool:
@@ -438,6 +369,7 @@ def import_whatsapp_file(
     extractor: WorkoutExtractor | None = None,
     *,
     source_bytes: bytes | None = None,
+    reprocess_existing: bool = False,
 ) -> QualityReport:
     settings = settings or get_settings()
     if session.get(User, user_id) is None:
@@ -520,7 +452,10 @@ def import_whatsapp_file(
     all_reasons: list[str] = []
 
     for position, (raw_message, message, outcome) in enumerate(zip(raw_messages, messages, outcomes, strict=True)):
-        previous_for_version = _existing_result_for_version(session, raw_message.id, settings.parser_version)
+        previous_for_version = _preserved_result(session, raw_message.id, reprocess_existing)
+        previous_for_version = previous_for_version or _existing_result_for_version(
+            session, raw_message.id, settings.parser_version
+        )
         if previous_for_version is not None:
             session.add(
                 ParseResult(

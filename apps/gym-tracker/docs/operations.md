@@ -19,7 +19,10 @@ uv run python -m gym_tracker.cli import-whatsapp --file export.txt --user UUID -
 uv run python -m gym_tracker.cli quality-report --import-id UUID
 ```
 
-O mesmo arquivo/versão retorna `duplicate_import=true`. Uma nova versão cria outro parse run. Em exports sobrepostos, a ocorrência é registrada no novo import e a mensagem anterior é reutilizada.
+O mesmo arquivo/versão retorna `duplicate_import=true`. Uma nova versão cria outro
+parse run, reaproveitando por padrão os resultados já aceitos. Em exports
+sobrepostos, a ocorrência é registrada no novo import e a mensagem anterior é
+reutilizada. Rejeições humanas não são reabertas automaticamente.
 
 ## Formatos do WhatsApp
 
@@ -64,13 +67,14 @@ Esses motivos de revisão bloqueiam a autoaceitação por IA, mesmo quando ela
 propõe valores plausíveis. Resolver um alias não remove a evidência de uma
 repetição inválida.
 
-Publicar a nova versão não atualiza o `.env` da instalação anterior. Não mude
-`PARSER_VERSION` no importador ativo apenas para testar: a mudança solicita uma
-nova análise do TXT. Antes de adotar a versão, faça backup e compare os
-resultados em uma cópia do banco, preservando as correções humanas. Resultados
-que exigem revisão mantêm a versão aceita anterior ativa. A ativação no banco
-pessoal e o reprocessamento do histórico são operações separadas da correção
-do código.
+Publicar a nova versão não atualiza o `.env` da instalação anterior. Antes de
+adotá-la, faça backup e ensaie a migração em uma cópia do banco. A importação
+normal preserva os resultados aceitos ao mudar `PARSER_VERSION`, processando
+mensagens novas e registrando o reaproveitamento das anteriores. Uma reavaliação
+administrativa explícita com `reprocess_existing=True` pode substituir resultados
+automáticos numa nova versão; decisões humanas continuam protegidas. Veja a
+[base do app](../../../docs/base-do-app.md) para sessões diretas, login e migração
+da instalação.
 
 ## Revisões
 
@@ -126,7 +130,7 @@ uma segunda aplicação, e confirme que as tabelas da pipeline continuam vazias.
 ## Limitações
 
 - revisão humana ainda usa CLI/JSON;
-- não há autenticação web;
+- o login já existe na API; as telas de acesso ainda serão construídas;
 - correlação de exports com precisão temporal diferente é conservadora;
 - duas variantes históricas confirmadas tornam o equipamento ambíguo;
 - LLM autoaceita somente com duas configurações explícitas e continua sendo uma opção de alto controle.

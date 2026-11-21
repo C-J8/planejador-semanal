@@ -9,7 +9,7 @@ from gym_tracker.config import Settings
 from gym_tracker.models import ExerciseVariant, ParseResult, ParseReview, User, WorkoutSet
 from gym_tracker.repositories.catalog import get_or_create_exercise, save_alias
 from gym_tracker.repositories.dashboard import DashboardRepository
-from gym_tracker.schemas import ExercisePayload, SetPayload, WorkoutExtraction
+from gym_tracker.schemas import ExercisePayload, ParseOutcome, SetPayload, WorkoutExtraction
 from gym_tracker.services.llm_extractor import MockWorkoutExtractor
 from gym_tracker.services.reviews import accept_review
 from gym_tracker.services.validation import ReviewReasonKind, classify_review_reason, llm_auto_accept_blockers
@@ -94,12 +94,66 @@ def test_reprocessing_ambiguous_source_preserves_the_previous_human_decision(ses
         session, Path("synthetic.txt"), user.id, settings=import_settings("v2"), source_bytes=source
     )
     session.commit()
-    assert report.messages_pending_review == 1
+    assert report.messages_pending_review == 0
     assert report.sets_accepted == 0
     assert session.scalar(select(ParseResult.id).where(ParseResult.is_active.is_(True))) == active_id
     assert list(session.execute(select(WorkoutSet.id, WorkoutSet.weight_kg, WorkoutSet.reps)).all()) == before
     assert len(DashboardRepository(session).workout_dataframe(user.id)) == 2
     assert review.status == "accepted"
+
+
+@pytest.mark.parametrize("explicit_reprocess", [False, True])
+def test_unambiguous_parser_cannot_override_a_human_correction(session, user, explicit_reprocess, monkeypatch):
+    source = b"01/01/2026 10:00 - Pessoa: Extensora 40kg/10rep/rep"
+    import_whatsapp_file(session, Path("manual.txt"), user.id, settings=import_settings("old"), source_bytes=source)
+    review = session.scalar(select(ParseReview))
+    corrected = WorkoutExtraction(
+        workout_date=date(2026, 1, 1),
+        exercises=[
+            ExercisePayload(
+                raw_name="Extensora",
+                canonical_name="Extensora",
+                muscle_group="Pernas",
+                equipment="Máquina",
+                sets=[SetPayload(weight_kg=40, reps=10), SetPayload(weight_kg=40, reps=6)],
+            )
+        ],
+    )
+    accept_review(session, review.id, corrected.model_dump(mode="json"))
+    session.commit()
+    before = list(session.execute(select(WorkoutSet.id, WorkoutSet.reps)).all())
+    automatic = corrected.model_copy(deep=True)
+    automatic.exercises[0].sets = [SetPayload(weight_kg=50, reps=12)]
+    monkeypatch.setattr(
+        "gym_tracker.services.whatsapp_import.parse_workout_message", lambda _: ParseOutcome(extraction=automatic)
+    )
+    report = import_whatsapp_file(
+        session,
+        Path("manual.txt"),
+        user.id,
+        settings=import_settings("new"),
+        source_bytes=source,
+        reprocess_existing=explicit_reprocess,
+    )
+    assert report.messages_pending_review == 0 and report.sets_accepted == 0
+    assert list(session.execute(select(WorkoutSet.id, WorkoutSet.reps)).all()) == before
+
+
+def test_automatic_upgrade_reuses_accepted_rules_and_still_imports_new_messages(session, user):
+    old = b"01/01/2026 10:00 - Pessoa: Extensora 40kg/10rep"
+    import_whatsapp_file(session, Path("a.txt"), user.id, settings=import_settings("old"), source_bytes=old)
+    session.commit()
+    active = session.scalar(select(ParseResult.id).where(ParseResult.is_active.is_(True)))
+    report = import_whatsapp_file(
+        session,
+        Path("b.txt"),
+        user.id,
+        settings=import_settings("new"),
+        source_bytes=old + b"\n02/01/2026 10:00 - Pessoa: Flexora 30kg/8rep",
+    )
+    assert report.sets_accepted == 1
+    assert session.get(ParseResult, active).is_active
+    assert session.scalar(select(func.count()).select_from(WorkoutSet)) == 2
 
 
 def test_plate_loaded_machine_reaches_the_database_without_generic_machine_alias(session: Session, user: User) -> None:

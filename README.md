@@ -9,6 +9,10 @@ o histórico Git dos dois projetos preservado. Consulte o
 aplicações ou migrar uma instalação existente. O nome do projeto integrado
 ainda será definido.
 
+A [base do app de treinos](docs/base-do-app.md) já oferece fichas, sessões
+independentes do WhatsApp e API com login e dados separados por pessoa.
+As interfaces móveis e o compartilhamento com grupos são as próximas entregas.
+
 **Primeiro acesso à pasta?** Leia [COMECE AQUI](COMECE-AQUI.md).
 Para editar, abra `Planner.code-workspace` no VS Code e use **Terminal → Executar
 Tarefa...**. O [manual de manutenção](docs/manutencao.md) mostra onde alterar cada

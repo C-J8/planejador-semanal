@@ -485,7 +485,9 @@ def test_postgres_overlapping_exports_and_versioned_results(tmp_path: Path, monk
         reused = session.scalar(select(RawMessage).where(RawMessage.raw_content == "Extensora 40kg/10rep"))
         assert reused is not None and len(reused.occurrences) == 2
 
-        reprocessed = import_whatsapp_file(session, export_a, user.id, settings=Settings(parser_version="pg-v2"))
+        reprocessed = import_whatsapp_file(
+            session, export_a, user.id, settings=Settings(parser_version="pg-v2"), reprocess_existing=True
+        )
         session.commit()
         assert reprocessed.reprocessed is True
         assert session.scalar(select(func.count()).select_from(ParseRun)) == 3
@@ -768,7 +770,7 @@ def test_postgres_catalog_bootstrap_is_catalog_only_idempotent_and_multiuser(
 def test_postgres_repairs_early_0002_occurrence_precision(tmp_path, monkeypatch):
     assert TEST_DATABASE_URL is not None
     _reset_test_database(TEST_DATABASE_URL)
-    _migrate(TEST_DATABASE_URL, "0002", monkeypatch)
+    _migrate(TEST_DATABASE_URL, "head", monkeypatch)
     engine = create_engine(TEST_DATABASE_URL)
     try:
         with Session(engine) as session:
@@ -783,6 +785,7 @@ def test_postgres_repairs_early_0002_occurrence_precision(tmp_path, monkeypatch)
                 source_bytes=b"[13/08/2026, 10:15:32] Pessoa: Extensora 40kg/10rep",
             )
             session.commit()
+        _downgrade(TEST_DATABASE_URL, "0002", monkeypatch)
         with engine.begin() as connection:
             connection.execute(text("ALTER TABLE import_message_occurrences DROP COLUMN timestamp_precision"))
         _migrate(TEST_DATABASE_URL, "head", monkeypatch)
@@ -799,7 +802,7 @@ def test_postgres_repairs_early_0002_occurrence_precision(tmp_path, monkeypatch)
 def test_postgres_bodyweight_migration_and_manual_review_preserve_weighted_sets(tmp_path, monkeypatch):
     assert TEST_DATABASE_URL is not None
     _reset_test_database(TEST_DATABASE_URL)
-    _migrate(TEST_DATABASE_URL, "0003", monkeypatch)
+    _migrate(TEST_DATABASE_URL, "head", monkeypatch)
     engine = create_engine(TEST_DATABASE_URL)
     try:
         with Session(engine) as session:
@@ -819,6 +822,7 @@ def test_postgres_bodyweight_migration_and_manual_review_preserve_weighted_sets(
                 )
             review_id = session.scalar(select(ParseReview.id).where(ParseReview.status == "pending"))
             session.commit()
+        _downgrade(TEST_DATABASE_URL, "0003", monkeypatch)
         _migrate(TEST_DATABASE_URL, "head", monkeypatch)
         payload = WorkoutExtraction(
             workout_date="2026-08-06",

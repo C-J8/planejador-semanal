@@ -128,7 +128,7 @@ def test_bodyweight_migration_preserves_weighted_sets_and_blocks_lossy_downgrade
     monkeypatch.setenv("DATABASE_URL", url)
     get_settings.cache_clear()
     config = Config("alembic.ini")
-    command.upgrade(config, "0003")
+    command.upgrade(config, "head")
     engine = create_engine(url)
     try:
         with Session(engine) as session:
@@ -144,6 +144,7 @@ def test_bodyweight_migration_preserves_weighted_sets_and_blocks_lossy_downgrade
             )
             review_id = pending_bodyweight_review(session, user).id
             session.commit()
+        command.downgrade(config, "0003")
         command.upgrade(config, "head")
         command.check(config)
         with Session(engine) as session:

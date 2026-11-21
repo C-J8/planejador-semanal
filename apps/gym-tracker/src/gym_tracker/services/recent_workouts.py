@@ -2,17 +2,17 @@ import math
 
 import pandas as pd
 
-EXERCISE_KEYS = ["exercicio", "tipo"]
-DAY_KEYS = ["data", *EXERCISE_KEYS]
+EXERCISE_KEYS = ["variante_id", "exercicio", "tipo", "base_carga", "local"]
+DAY_KEYS = ["data", "treino_id", "treino_label", "treino_ordem", *EXERCISE_KEYS]
 
 
 def recent_group_workouts(data: pd.DataFrame, group: str, limit: int = 5) -> pd.DataFrame:
-    """Select the group's dates before focusing on a particular exercise."""
+    """Select sessions before focusing on a particular variant."""
     if limit < 1:
         raise ValueError("O limite de treinos deve ser positivo.")
     group_data = data.loc[data["grupo_muscular"].eq(group)]
-    dates = group_data["data"].drop_duplicates().sort_values().tail(limit)
-    return group_data.loc[group_data["data"].isin(dates)].sort_values(["data", "exercicio", "tipo", "serie"]).copy()
+    sessions = group_data[["data", "treino_id"]].drop_duplicates().sort_values("data", kind="stable").tail(limit)
+    return group_data.loc[group_data["treino_id"].isin(sessions["treino_id"])].copy()
 
 
 def summarize_exercise_days(data: pd.DataFrame) -> pd.DataFrame:
@@ -27,7 +27,7 @@ def summarize_exercise_days(data: pd.DataFrame) -> pd.DataFrame:
         repeticoes_totais=("repeticoes", "sum"),
         volume=("volume", "sum"),
     )
-    return top_sets.merge(totals, on=DAY_KEYS, validate="one_to_one").sort_values(DAY_KEYS)
+    return top_sets.merge(totals, on=DAY_KEYS, validate="one_to_one").sort_values(["treino_ordem", *EXERCISE_KEYS])
 
 
 def format_load(value: float) -> str:
@@ -44,16 +44,17 @@ def format_set(weight: float, reps: int, equipment: str) -> str:
 
 def recent_workout_insights(summary: pd.DataFrame) -> list[str]:
     """Describe the last two group dates without interpreting volume as strength."""
-    dates = summary["data"].drop_duplicates().sort_values()
-    if len(dates) < 2:
+    sessions = summary[["data", "treino_id"]].drop_duplicates().sort_values("data", kind="stable")
+    if len(sessions) < 2:
         return ["Há apenas um treino disponível deste grupo. A comparação aparecerá com o próximo registro."]
-    previous_date, latest_date = dates.iloc[-2:]
-    previous = summary.loc[summary["data"].eq(previous_date)].set_index(EXERCISE_KEYS)
-    latest = summary.loc[summary["data"].eq(latest_date)].set_index(EXERCISE_KEYS)
+    previous_date, previous_id = sessions.iloc[-2]
+    latest_date, latest_id = sessions.iloc[-1]
+    previous = summary.loc[summary["treino_id"].eq(previous_id)].set_index(EXERCISE_KEYS)
+    latest = summary.loc[summary["treino_id"].eq(latest_id)].set_index(EXERCISE_KEYS)
     insights = []
-    for exercise, equipment in sorted(previous.index.union(latest.index)):
-        key = (exercise, equipment)
-        label = f"{exercise} · {equipment}"
+    for key in sorted(previous.index.union(latest.index)):
+        _, exercise, equipment, basis, location = key
+        label = f"{exercise} · {equipment} · {basis}" + (f" · {location}" if location else "")
         if key not in latest.index:
             insights.append(f"{label}: sem registro no último treino ({latest_date:%d/%m/%Y}).")
             continue

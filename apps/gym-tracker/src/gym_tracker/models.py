@@ -246,6 +246,9 @@ class ParseResult(TimestampMixin, Base):
 
 class Workout(TimestampMixin, Base):
     __tablename__ = "workouts"
+    __table_args__ = (
+        CheckConstraint("status IN ('draft','in_progress','completed','cancelled')", name="ck_workout_status"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
@@ -253,6 +256,14 @@ class Workout(TimestampMixin, Base):
     workout_type: Mapped[str | None] = mapped_column(String(120))
     notes: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str] = mapped_column(String(40), nullable=False, default="whatsapp")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="completed", server_default="completed")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    routine_snapshot: Mapped[dict[str, Any]] = mapped_column(
+        JSON_TYPE, nullable=False, default=dict, server_default="{}"
+    )
+    content: Mapped[dict[str, Any]] = mapped_column(JSON_TYPE, nullable=False, default=dict, server_default="{}")
 
     user: Mapped[User] = relationship(back_populates="workouts")
     sets: Mapped[list["WorkoutSet"]] = relationship(back_populates="workout", cascade="all, delete-orphan")
@@ -322,6 +333,7 @@ class WorkoutSet(TimestampMixin, Base):
             "set_number",
             name="uq_set_result_variant_number",
         ),
+        UniqueConstraint("workout_id", "exercise_variant_id", "set_number", name="uq_set_workout_variant_number"),
         CheckConstraint("set_number > 0", name="ck_set_number_positive"),
         CheckConstraint("weight_kg >= 0 AND weight_kg <= 500", name="ck_set_weight_range"),
         CheckConstraint("reps > 0 AND reps <= 200", name="ck_set_reps_range"),
@@ -336,9 +348,10 @@ class WorkoutSet(TimestampMixin, Base):
         ForeignKey("exercise_variants.id", ondelete="RESTRICT"), nullable=False
     )
     raw_message_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("raw_messages.id", ondelete="SET NULL"))
-    parse_result_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("parse_results.id", ondelete="CASCADE"), nullable=False
+    parse_result_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("parse_results.id", ondelete="CASCADE"), nullable=True
     )
+    exercise_position: Mapped[int | None] = mapped_column(Integer)
     set_number: Mapped[int] = mapped_column(Integer, nullable=False)
     weight_kg: Mapped[Decimal] = mapped_column(Numeric(7, 2), nullable=False)
     reps: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -351,7 +364,7 @@ class WorkoutSet(TimestampMixin, Base):
     workout: Mapped[Workout] = relationship(back_populates="sets")
     exercise_variant: Mapped[ExerciseVariant] = relationship(back_populates="sets")
     raw_message: Mapped[RawMessage | None] = relationship(back_populates="sets")
-    parse_result: Mapped[ParseResult] = relationship(back_populates="sets")
+    parse_result: Mapped[ParseResult | None] = relationship(back_populates="sets")
 
 
 class ParseReview(TimestampMixin, Base):
@@ -381,3 +394,31 @@ class DataRevision(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
+
+
+class Routine(TimestampMixin, Base):
+    __tablename__ = "workout_routines"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    content: Mapped[dict[str, Any]] = mapped_column(JSON_TYPE, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class LoginAccount(TimestampMixin, Base):
+    __tablename__ = "login_accounts"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    login: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    failed_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AccessSession(TimestampMixin, Base):
+    __tablename__ = "access_sessions"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

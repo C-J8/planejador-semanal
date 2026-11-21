@@ -7,8 +7,8 @@ from gym_tracker.models import ParseMethod, ParseResultStatus, ParseReview, Pars
 from gym_tracker.repositories.catalog import get_or_create_exercise, save_alias
 from gym_tracker.repositories.state import bump_data_revision
 from gym_tracker.schemas import WorkoutExtraction
+from gym_tracker.services.imported_workouts import activate_result, materialize_extraction
 from gym_tracker.services.normalization import normalize_text
-from gym_tracker.services.whatsapp_import import _activate_result, _materialize_extraction
 
 
 def accept_review(
@@ -28,7 +28,7 @@ def accept_review(
     if result.status != ParseResultStatus.REVIEW.value or result.sets:
         raise ValueError("o resultado da revisao nao esta pendente ou ja possui series")
     user_id = raw_message.user_id
-    _materialize_extraction(
+    materialize_extraction(
         session,
         user_id,
         raw_message,
@@ -40,7 +40,7 @@ def accept_review(
     result.parse_method = ParseMethod.MANUAL.value
     result.payload = extraction.model_dump(mode="json")
     result.reasons = []
-    _activate_result(session, result)
+    activate_result(session, result)
     if alias_raw and extraction.exercises:
         matching = [
             payload for payload in extraction.exercises if normalize_text(payload.raw_name) == normalize_text(alias_raw)

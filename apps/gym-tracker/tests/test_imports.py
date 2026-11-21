@@ -140,7 +140,7 @@ def test_same_file_new_parser_version_reprocesses_and_only_new_result_is_active(
     source = write_export(tmp_path / "versioned.txt", "01/01/2026 10:00 - Pessoa: Extensora 40kg/10rep")
     first = import_whatsapp_file(session, source, user.id, settings=settings("v1"))
     session.commit()
-    second = import_whatsapp_file(session, source, user.id, settings=settings("v2"))
+    second = import_whatsapp_file(session, source, user.id, settings=settings("v2"), reprocess_existing=True)
     session.commit()
 
     assert first.import_id == second.import_id
@@ -761,6 +761,7 @@ def test_llm_without_equipment_evidence_keeps_previous_result_and_dashboard(
         source,
         user.id,
         settings=settings("v2", llm_shadow_mode=False, llm_auto_accept=True),
+        reprocess_existing=True,
         extractor=MockWorkoutExtractor(result=proposal),
     )
     active_result = session.scalar(select(ParseResult).where(ParseResult.is_active.is_(True)))
@@ -1019,6 +1020,7 @@ def test_empty_llm_reprocessing_keeps_previous_accepted_result_active(
         source,
         user.id,
         settings=settings("v2", llm_shadow_mode=False, llm_auto_accept=True),
+        reprocess_existing=True,
         extractor=MockWorkoutExtractor(result=proposal),
     )
     active_result = session.scalar(select(ParseResult).where(ParseResult.is_active.is_(True)))
@@ -1121,6 +1123,7 @@ def test_uncertain_llm_proposal_never_replaces_previous_active_result(
         source,
         user.id,
         settings=settings("v2", llm_shadow_mode=False, llm_auto_accept=True),
+        reprocess_existing=True,
         extractor=MockWorkoutExtractor(result=proposal),
     )
     review = session.scalar(select(ParseReview))
@@ -1165,6 +1168,7 @@ def test_valid_llm_proposal_cannot_override_source_identity_conflict(
         changed,
         user.id,
         settings=settings("v2", llm_shadow_mode=False, llm_auto_accept=True),
+        reprocess_existing=True,
         extractor=MockWorkoutExtractor(result=proposal),
     )
     review = session.scalar(select(ParseReview))
@@ -1283,7 +1287,7 @@ def test_activation_failure_rolls_back_and_keeps_previous_result(
 
     monkeypatch.setattr("gym_tracker.services.whatsapp_import._activate_result", fail_after_deactivation)
     with pytest.raises(RuntimeError, match="simulada"), session.begin_nested():
-        import_whatsapp_file(session, source, user.id, settings=settings("v2"))
+        import_whatsapp_file(session, source, user.id, settings=settings("v2"), reprocess_existing=True)
 
     session.expire_all()
     assert session.get(ParseResult, old_result.id).is_active is True

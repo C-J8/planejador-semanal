@@ -35,7 +35,7 @@ def test_migrations_apply_from_zero(tmp_path: Path, monkeypatch) -> None:
         "parse_reviews",
         "data_revisions",
     } <= tables
-    assert revision == "0004"
+    assert revision == "0005"
     get_settings.cache_clear()
 
 
@@ -109,7 +109,7 @@ def test_upgrade_repairs_early_0002_without_losing_workouts(tmp_path: Path, monk
     monkeypatch.setenv("DATABASE_URL", url)
     get_settings.cache_clear()
     config = Config("alembic.ini")
-    command.upgrade(config, "0002")
+    command.upgrade(config, "head")
     engine = create_engine(url)
     with Session(engine) as session:
         user = User(display_name="Pessoa de teste")
@@ -124,6 +124,7 @@ def test_upgrade_repairs_early_0002_without_losing_workouts(tmp_path: Path, monk
         )
         session.commit()
     engine.dispose()
+    command.downgrade(config, "0002")
     with sqlite3.connect(database) as connection:
         connection.execute("ALTER TABLE import_message_occurrences DROP COLUMN timestamp_precision")
     command.upgrade(config, "head")
@@ -170,7 +171,7 @@ def test_import_changes_dashboard_signature_without_restart(tmp_path: Path) -> N
     url = f"sqlite:///{database.as_posix()}"
     engine = create_engine(url)
     Base.metadata.create_all(engine)
-    settings = Settings(database_url=url, data_backend="postgres", parser_version="cache-test")
+    settings = Settings(_env_file=None, database_url=url, data_backend="postgres", parser_version="cache-test")
     source = tmp_path / "cache.txt"
     source.write_text("01/01/2026 10:00 - Pessoa: Extensora 40kg/10rep", encoding="utf-8")
     with Session(engine) as session:

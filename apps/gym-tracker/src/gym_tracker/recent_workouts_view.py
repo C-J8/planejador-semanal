@@ -16,8 +16,8 @@ SET_COLORS = ["#3B82F6", "#22C55E", "#EF4444", "#F59E0B", "#A78BFA", "#22D3EE", 
 def render_recent_workouts(data: pd.DataFrame, *, theme_figure: Callable[[go.Figure], go.Figure]) -> None:
     st.subheader("Últimos treinos")
     st.caption(
-        "As cinco datas mais recentes de cada grupo muscular, dentro dos filtros da barra lateral. "
-        "Cada data conta como um treino do grupo."
+        "As cinco sessões mais recentes de cada grupo muscular, dentro dos filtros da barra lateral. "
+        "Sessões no mesmo dia são contadas separadamente."
     )
     if data.empty:
         st.info("Nenhum treino disponível para os filtros atuais.")
@@ -25,12 +25,15 @@ def render_recent_workouts(data: pd.DataFrame, *, theme_figure: Callable[[go.Fig
 
     group = st.selectbox("Músculo para comparar", sorted(data["grupo_muscular"].unique()), key="recent_group")
     recent = recent_group_workouts(data, group)
-    dates = pd.DatetimeIndex(recent["data"].drop_duplicates().sort_values())
+    timeline = (
+        recent[["data", "treino_id", "treino_label", "treino_ordem"]].drop_duplicates().sort_values("treino_ordem")
+    )
+    dates = pd.DatetimeIndex(timeline["data"])
     summary = summarize_exercise_days(recent)
     if len(dates) < 5:
         st.info(f"Este grupo tem {len(dates)} de 5 treinos disponíveis nos filtros atuais.")
 
-    daily = summary.groupby("data").agg(
+    daily = summary.groupby(["treino_ordem", "treino_id"], sort=True).agg(
         series=("series", "sum"),
         repeticoes=("repeticoes_totais", "sum"),
         exercicios=("exercicio", "size"),
@@ -51,15 +54,14 @@ def render_recent_workouts(data: pd.DataFrame, *, theme_figure: Callable[[go.Fig
             st.metric(label, str(int(latest[field])), delta=delta, delta_color="off")
 
     st.markdown("#### Comparação por exercício")
-    options = list(
-        summary[["exercicio", "tipo"]]
-        .drop_duplicates()
-        .sort_values(["exercicio", "tipo"])
-        .itertuples(index=False, name=None)
+    variants = recent[["variante_id", "exercicio", "tipo", "exercicio_tipo"]].drop_duplicates().set_index("variante_id")
+    variant_id = st.selectbox(
+        "Exercício e aparelho",
+        list(variants.index),
+        format_func=lambda value: variants.loc[value, "exercicio_tipo"],
+        key=f"recent_exercise_{group}",
     )
-    exercise, equipment = st.selectbox(
-        "Exercício e aparelho", options, format_func=lambda option: " · ".join(option), key=f"recent_exercise_{group}"
-    )
+    exercise, equipment = variants.loc[variant_id, ["exercicio", "tipo"]]
     bodyweight = equipment == "Peso corporal"
     metrics = {
         "peso_kg": "Carga adicional (kg)" if bodyweight else "Carga (kg)",
@@ -73,16 +75,21 @@ def render_recent_workouts(data: pd.DataFrame, *, theme_figure: Callable[[go.Fig
         format_func=metrics.get,
         key=f"recent_metric_{group}_{bodyweight}",
     )
-    focused = recent.loc[recent["exercicio"].eq(exercise) & recent["tipo"].eq(equipment)]
+    focused = recent.loc[recent["variante_id"].eq(variant_id)]
     fig = go.Figure()
     load_label = "Carga adicional" if bodyweight else "Carga"
     for set_number, set_data in focused.groupby("serie", sort=True):
-        points = dates.to_frame(index=False, name="data").merge(set_data, on="data", how="left", validate="one_to_many")
+        points = timeline.merge(
+            set_data.drop(columns=["data", "treino_label", "treino_ordem"]),
+            on="treino_id",
+            how="left",
+            validate="one_to_one",
+        )
         hover_values = points[["peso_kg", "repeticoes", "volume"]].astype(object)
         hover_values = hover_values.where(hover_values.notna(), None)
         fig.add_trace(
             go.Scatter(
-                x=points["data"].dt.strftime("%d/%m/%Y").tolist(),
+                x=points["treino_label"].tolist(),
                 y=[None if pd.isna(value) else float(value) for value in points[metric]],
                 name=f"{int(set_number)}ª série",
                 mode="lines+markers",
@@ -99,7 +106,7 @@ def render_recent_workouts(data: pd.DataFrame, *, theme_figure: Callable[[go.Fig
             )
         )
     theme_figure(fig)
-    fig.update_xaxes(type="category", categoryorder="array", categoryarray=dates.strftime("%d/%m/%Y").tolist())
+    fig.update_xaxes(type="category", categoryorder="array", categoryarray=timeline["treino_label"].tolist())
     if metric == "repeticoes":
         fig.update_yaxes(tickformat="d")
     fig.update_layout(

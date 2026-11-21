@@ -99,7 +99,7 @@ def test_insights_compare_adjacent_group_dates_instead_of_older_exercise_dates(r
     assert "sem registro no anterior (05/01/2026)" in machine
     removed = summary.loc[~(summary["data"].eq(pd.Timestamp("2026-01-06")) & summary["exercicio"].eq("Crucifixo"))]
     assert any(
-        "Crucifixo · Máquina: sem registro no último treino (06/01/2026)" in item
+        "Crucifixo · Máquina · total: sem registro no último treino (06/01/2026)" in item
         for item in recent_workout_insights(removed)
     )
 
@@ -150,7 +150,7 @@ def test_recent_view_switches_muscles_and_bodyweight_metrics(recent_data):
     assert not app.exception
     chart = json.loads(app.get("plotly_chart")[0].proto.spec)
     assert [trace["y"] for trace in chart["data"]] == [[300] * 5, [240] * 5, [150, 150, 150, None, 150]]
-    app.selectbox(key="recent_exercise_Peito").set_value(("Supino inclinado", "Máquina com anilha")).run()
+    app.selectbox(key="recent_exercise_Peito").set_value("Supino inclinado|Máquina com anilha|total|").run()
     assert not app.exception
     chart = json.loads(app.get("plotly_chart")[0].proto.spec)
     assert chart["data"][0]["x"] == [f"{day:02d}/01/2026" for day in range(2, 7)]

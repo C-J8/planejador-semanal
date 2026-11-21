@@ -1,10 +1,11 @@
 # Preparação do app de treinos para amigos
 
-Revisão em 19/11/2026. Objetivo confirmado: uso pessoal e em um grupo de
+Revisão em 20/11/2026. Objetivo confirmado: uso pessoal e em um grupo de
 amigos, combinando registro detalhado de treinos com desafios de constância.
 Este documento registra a revisão e a ordem proposta. A união dos repositórios
-e as correções do parser indicadas abaixo estão concluídas; as demais mudanças
-ainda precisam ser implementadas.
+e as correções do parser indicadas abaixo estão concluídas; a base de sessões, fichas, identidade nas análises e login na API também foi
+implementada. As telas móveis e o acesso por pessoa no Planner continuam pendentes.
+Veja o [contrato da base do app](base-do-app.md).
 
 ## Situação atual
 
@@ -18,51 +19,39 @@ O Planner já abre a Academia, mas sua rota `/academia` redireciona para
 `127.0.0.1` aponta para o próprio celular. O acesso do grupo precisa de um
 endereço de servidor e de identificação de quem está usando o aplicativo.
 
-A consolidação anterior foi encontrada no início desta revisão em
-`local_backups/repository-union-20261111`, na branch local
-`integration/gym-tracker-monorepo`, com merge ainda não concluído naquele
-momento. A consulta inicial ao GitHub confirmou que ela ainda não havia sido
-publicada no `planejador-semanal`. A publicação precisa incluir as alterações
-locais importantes do Gym Tracker, como as migrations 0003/0004 e os últimos
-treinos, preservando o histórico dos dois projetos.
-
-A união foi concluída na `main` do
+A união está publicada no
 [`planejador-semanal`](https://github.com/C-J8/planejador-semanal), preservando
-os dois históricos. O [CI da consolidação](https://github.com/C-J8/planejador-semanal/actions/runs/44659568393)
-passou nas duas aplicações. As pastas locais de uso continuam separadas;
-adotar o checkout unificado é uma etapa operacional posterior.
+os dois históricos. A instalação unificada usa o Planner na raiz e a Academia
+em `apps/gym-tracker`. Exports e backups pessoais podem continuar fora do
+checkout, com caminhos absolutos na configuração privada.
 
 ## Prioridades antes das telas novas
 
 ### 1. Sessões de treino independentes do importador
 
-Hoje `WorkoutSet.parse_result_id` é obrigatório. A criação de treinos está em
-`services/whatsapp_import.py::_materialize_extraction`, usada inclusive pela
-revisão humana por meio de uma função privada. A consulta do dashboard exige
-um resultado de parsing ativo para mostrar as séries.
+Implementado na migração `0005` e em `services/workouts.py`: sessões com
+identidade, proprietário, estado, início/término, revisão e séries ordenadas.
+Fichas reutilizáveis são copiadas ao iniciar uma sessão. Seus alvos não
+contam como séries realizadas, e edições na ficha não mudam a sessão.
 
-Extrair um serviço de treino compartilhado por registro direto, edição e
-importação. Uma sessão precisa de identidade estável, usuário, estado
-(rascunho, em andamento, concluído, cancelado), exercícios ordenados e séries
-ordenadas. Início, término, notas e descanso atendem ao registro ao vivo.
-Fichas reutilizáveis devem ser separadas das sessões realizadas: alterar uma
-ficha não pode alterar o histórico.
-
-Manter a origem e o histórico das importações. Retirar a obrigatoriedade de
-`parse_result_id` sem mudar a consulta não basta: as séries diretas ficariam
-invisíveis, e remover o filtro de resultado ativo somaria versões antigas.
-Reimportações também precisam preservar as correções feitas no app.
-
-Não preencher horários ou durações desconhecidos nos treinos históricos.
-Dados exportados e registros manuais antigos podem ter apenas a data.
+Séries do app não exigem parsing; séries importadas continuam vinculadas ao
+resultado ativo. Rascunhos e cancelamentos ficam fora das análises. O serviço
+compartilhado `services/imported_workouts.py` atende importador e revisão.
+Os horários históricos desconhecidos permanecem nulos. A importação normal
+reutiliza resultados aceitos, inclusive ao atualizar o parser, e não reabre
+rejeições humanas. Correções confirmadas continuam preservadas mesmo na
+reavaliação administrativa explícita.
 
 ### 2. Pessoas e permissões
 
-O `User` da Academia tem apenas identificação e nome, sem login. O usuário do
+A API da Academia tem login, sessões revogáveis e verificação de proprietário
+em cada operação de treino ou ficha. As contas são provisionadas pelo
+administrador, sem senha padrão ou cadastro público. O usuário do
 dashboard é escolhido por configuração do servidor. As tabelas do Planner
 não têm proprietário por pessoa.
 
-Criar identidade de acesso e exigir usuário em cada operação da API. Cada
+O isolamento de treinos e fichas na API está implementado e testado com duas
+pessoas. A tela de login e o compartilhamento com grupos ainda faltam. Cada
 pessoa edita seus próprios treinos; os integrantes de um grupo acessam somente
 os dados compartilhados com ele. Se o Planner também for disponibilizado aos
 amigos, suas atividades e eventos precisam de proprietário antes disso.
@@ -74,15 +63,11 @@ preferência de um integrante em regra para todos.
 
 ### 3. Preservar identidade nas análises
 
-`DashboardRepository.workout_dataframe` não retorna os IDs de treino e
-variante, a base da carga nem o local/aparelho. Os últimos treinos agrupam por
-data, nome e tipo. Em uma reprodução com duas sessões e variantes diferentes
-no mesmo dia, o resumo as juntou em uma única linha.
-
-Usar IDs de sessão e variante nas consultas e comparações. Distinguir
-explicitamente dias ativos de sessões realizadas. Comparações de carga
-precisam manter exercício, equipamento, base da carga e aparelho/local
-compatíveis. A numeração da série pertence ao exercício dentro da sessão.
+Implementado: as consultas preservam IDs de sessão e variante, base da carga
+e local. Os últimos cinco treinos selecionam sessões, distinguindo duas sessões
+no mesmo dia. Os gráficos e recordes mantêm variantes separadas, inclusive
+aparelhos com o mesmo nome. Dias ativos e sessões realizadas são contados
+separadamente; as cores das séries e as lacunas de registros são preservadas.
 
 ### 4. Ambiguidades do parser — corrigidas na versão 3.0.2
 
@@ -98,11 +83,12 @@ Reproduções que motivaram as correções, sem alterar dados pessoais:
 
 As correções receberam testes específicos de parsing e importação, incluindo
 bloqueio da autoaceitação por IA e preservação de uma correção humana aceita
-quando a nova análise exige revisão. A versão é `3.0.2`. A instalação anterior
-não foi reconfigurada nem teve seu histórico reprocessado. Veja o
+quando a nova análise exige revisão. A versão é `3.0.2`. A instalação unificada
+foi atualizada com backup e migração ensaiada em uma cópia do banco. A revisão
+dos dados foi encerrada; a atualização manteve todas as séries e decisões humanas. Veja o
 [guia operacional](../apps/gym-tracker/docs/operations.md) antes de adotar a
-versão em um banco existente. Desacoplar o registro de treinos do WhatsApp
-continua sendo uma etapa posterior.
+versão em um banco existente. O registro direto de treinos já está
+desacoplado do WhatsApp; as telas móveis consumirão essa API.
 
 ### 5. Separar apresentação, regras e operação local
 
@@ -122,7 +108,7 @@ estar aberto; hospedagem e backups precisam ser definidos antes do piloto.
 
 ## Organização sugerida
 
-Concluir primeiro a consolidação já preparada, com Planner na raiz e Academia
+O repositório unificado tem o Planner na raiz e a Academia
 em `apps/gym-tracker`. Dentro da Academia, separar gradualmente:
 
 - **Treinos e fichas:** criação, edição, conclusão, exercícios e séries.
@@ -177,9 +163,10 @@ implementadas e testadas em qualquer opção.
 ## Ordem de entrega e validação
 
 1. **Concluído:** união dos repositórios e registro das melhorias locais.
-2. **Parser corrigido na 3.0.2.** Preservar identidade nas consultas ainda está pendente.
-3. Separar o serviço de treinos da importação e migrar sem perder o histórico.
-4. Criar login, propriedade dos dados e API; testar acesso entre duas pessoas.
+2. **Concluído:** parser 3.0.2 e identidade nas consultas e comparações.
+3. **Concluído:** serviços de sessões e fichas separados da importação.
+4. **API da Academia concluída:** login e isolamento testados entre duas pessoas.
+   Faltam as telas e a adaptação do Planner para acesso por pessoa.
 5. Entregar fichas, registro ao vivo, salvamento local e sincronização.
 6. Acrescentar grupos, convites, check-ins e desafio de constância.
 
@@ -192,6 +179,11 @@ Na verificação local desta revisão, os 54 testes existentes de parser, últim
 treinos e peso corporal passaram. As reproduções acima expuseram lacunas que
 não são cobertas por esses testes. Na publicação da consolidação, o CI passou
 com os 195 testes da Academia, incluindo PostgreSQL, e as suítes do Planner.
+
+Na entrega da base do app, passaram os 256 testes da suíte completa da Academia
+com PostgreSQL. Um caso adicional de bloqueio de login e privacidade do catálogo
+também passou na suíte específica. O Planner passou nos 271 testes unitários,
+nos 85 de integração, na verificação de tipos e na compilação.
 
 ## Referências de produto e implementação
 
